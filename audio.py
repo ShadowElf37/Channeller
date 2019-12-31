@@ -45,7 +45,7 @@ class Channel:
         self.gain = gain
         self.current: Track = None
         self._queue: [Track] = []
-        self.index = -1
+        self.index = 0
         self._channel_count = 1 if mono else 2
         self.compression = False
         self.comp_args = dict(threshold=-20.0, ratio=4.0, attack=5.0, release=50.0)
@@ -119,7 +119,9 @@ class Channel:
     def goto(self, i):
         if len(self._queue) > i > -1:
             self.index = i
-            self.current = self._queue[self.index]
+            self.update()
+    def update(self):
+        self.current = self._queue[self.index]
 
     def next(self):
         self.goto(self.index + 1)
@@ -139,12 +141,12 @@ class Channel:
     def resume(self):
         self.current.resume()
     def murder(self, i=None):  # Not sure why you'd want to call this
-        self._queue[i or self.index].die()
+        self._queue[i or self.index]._die()
     def wait(self):
         self.current.wait()
     def close(self):
         for track in self._queue:
-            track.die()
+            track._die()
 
 
 class Track:
@@ -212,19 +214,19 @@ class Track:
             self.stream.write((chunk + self.channel.gain)._data)  # Live channel.gain editing is possible because it's applied to each 50 ms chunk in real time
             self.play_time += CHUNK
             # print(self.play_time)
-        self.renew()  # Thread automatically renewed because I don't want to do this manually
+        self._renew()  # Thread automatically renewed because I don't want to do this manually
 
-    def renew(self):
+    def _renew(self):
         self.temp_start = 0
         self.temp_end = self.length
         self.thread = Thread(target=self._play, daemon=True)
 
     def start_at(self, sec):
-        self.renew()
+        self._renew()
         self.temp_start = int(sec*1000)
         self.play_time = self.temp_start
     def end_at(self, sec):
-        self.renew()
+        self._renew()
         self.temp_end = int(sec * 1000)
 
     def play(self):
@@ -247,7 +249,7 @@ class Track:
         if self.playing:
             self.playing = False
 
-    def die(self):
+    def _die(self):
         # Track cannot be played anymore once this is called
         self.playing = False
         self.stream.stop_stream()
@@ -264,13 +266,13 @@ if __name__ == "__main__":
     print(manager.channels)
     PA.terminate()
 
-exit()
-chan = Channel(gain=-1.0)
-chan.queue(Track("From Peak to Peak.wav"))
-# chan.queue(Track("Autumn's Last Breath.mp3"))  # mp3 broke
-chan.next()
-chan.play()
-sleep(2)
-chan.fade_gain(1.0, 3)
-chan.wait()
-chan.close()
+    exit()
+    chan = Channel(gain=-1.0)
+    chan.queue(Track("From Peak to Peak.wav"))
+    # chan.queue(Track("Autumn's Last Breath.mp3"))  # mp3 broke
+    chan.next()
+    chan.play()
+    sleep(2)
+    chan.fade_gain(1.0, 3)
+    chan.wait()
+    chan.close()
