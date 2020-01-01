@@ -30,18 +30,28 @@ class Element:
         self.woffset = woffset
         self.hoffset = hoffset
         self.tk_elements: [tk.Widget] = []
+        self.ow = self.app.w
+        self.oh = self.app.h
 
     def register(self, e):
         self.tk_elements.append(e)
         return e
 
+    def check_resize(self):
+        return self.ow != self.app.w or self.oh != self.app.h
+
     def draw(self):
-        for elem in self.tk_elements:
-            elem.configure(width=int(self.w * self.app.w + self.woffset),
-                           height=int(self.h * self.app.h + self.hoffset))
-            elem.place_forget()
-            elem.place(x=int(self.x * self.app.w + self.xoffset),
-                       y=int(self.y * self.app.h + self.yoffset))
+        if self.check_resize():  # Check for updates before we waste cycles on this
+            self.ow = self.app.w
+            self.oh = self.app.h
+            for elem in self.tk_elements:
+                elem.configure(width=int(self.w * self.app.w + self.woffset),
+                               height=int(self.h * self.app.h + self.hoffset))
+                elem.place_forget()
+                elem.place(x=int(self.x * self.app.w + self.xoffset),
+                           y=int(self.y * self.app.h + self.yoffset))
+            return True
+        return False
 
 
 class Canvas(Element):
@@ -63,6 +73,7 @@ class Canvas(Element):
         self.canvas.update_idletasks()
 
 class Div(Element):
+    # This class is not capable of aligning things within itself because I'm too lazy to implement that – it's literally just a box
     def __init__(self, app, w=1.0, h=1.0, x=0, y=0, bg='black', border_color='black', border_width=0, xoffset=0, yoffset=0, woffset=0, hoffset=0, **kwargs):
         super().__init__(app, w, h, x, y, xoffset, yoffset, woffset, hoffset)
         self.bg = bg
@@ -98,9 +109,9 @@ class Label(Element):
         return int(self.app.FONTSCALE * self.fontscale * self.app.w / self.app.W)
 
     def draw(self):
-        for elem in self.tk_elements:
-            elem.configure(font=(self.app.FONT, self.fontsize))
-        super().draw()
+        if super().draw():
+            for elem in self.tk_elements:
+                elem.configure(font=(self.app.FONT, self.fontsize))
 
     def define_pre_label(self, text):
         self.pre = text
@@ -122,7 +133,7 @@ class RightAlignLabel(Label):
 
 
 class Button(Element):
-    def __init__(self, app, w, h, x, y, text='', imgpath=None, cmd=lambda: None, bg='black', fg='white', bdc='white', xoffset=0, yoffset=0, woffset=0, hoffset=0, square=True):
+    def __init__(self, app, w, h, x, y, text='', img_path=None, img_scale=0.75, cmd=lambda: None, bg='black', fg='white', bdc='white', xoffset=0, yoffset=0, woffset=0, hoffset=0, square=True, **kwargs):
         super().__init__(app, w, h, x, y, xoffset, yoffset, woffset, hoffset)
         self.bdc = bdc
         self.fg = fg
@@ -130,15 +141,27 @@ class Button(Element):
         self.square = square
         self.text = tk.StringVar()
         self.text.set(text)
-        self.img = imgpath and Image.open(imgpath)  # returns first falsey value
-        self.tkimg = imgpath and ImageTk.PhotoImage(self.img)
-
-        self.button = self.register(tk.Button(self.root, text=self.text, command=cmd, image=self.tkimg, width=int(w*app.w), height=int(h*app.h) if not self.square else int(w*app.w), background=bg, fg=fg,))
+        self.img: Image.Image = None
+        self.img_path = img_path
+        self.img_scale = img_scale
+        if img_path:
+            self.img = Image.open(self.app.IMG + img_path) # self.app.DIR+'\\'+
+            # Resize img to fit in button
+            self.img.thumbnail(size=(int(w*app.w*self.img_scale + woffset), int(h*app.h*self.img_scale if not square else w*app.w*self.img_scale + hoffset)), resample=Image.ANTIALIAS)
+            self.tkimg = ImageTk.PhotoImage(self.img)
+            kwargs['image'] = self.tkimg
+        self.cmd = cmd
+        self.button = self.register(tk.Button(self.root, textvar=self.text, command=cmd, width=w*app.w, height=h*app.h if not self.square else w*app.w, relief='raised', compound='center', **kwargs))
         self.button.place(x=x*app.w, y=y*app.h)
 
     def draw(self):
-        super().draw()
-        self.button.configure(width=int(self.w*self.app.w), height=int(self.h*self.app.h) if not self.square else int(self.w*self.app.w))
+        if super().draw():
+            print(self.app.w)
+            self.img = Image.open(self.img_path)
+            self.img.thumbnail(size=(int(self.img_scale*self.w * self.app.w + self.woffset), int(self.img_scale*self.h * self.app.h if not self.square else self.w * self.app.w * self.img_scale + self.hoffset)), resample=Image.ANTIALIAS)
+            self.tkimg = ImageTk.PhotoImage(self.img)
+            self.button.configure(image=self.tkimg)
+            self.button.configure(height=int(self.h * self.app.h) if not self.square else int(self.w * self.app.w))  # overloads draw
 
 
 class ProgressBar(Element):
@@ -185,6 +208,7 @@ class App:
         self.FONTSCALE = 9
         self.ICON = self.DIR + '\\favicon.ico'
         self.CFG = self.DIR + '\\config\\'
+        self.IMG = self.DIR + '\\images\\'
         self.W = self.w = width  # w and h are current width and height; W and H are original
         self.H = self.h = height
         self.framerate = 60

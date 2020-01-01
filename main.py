@@ -73,11 +73,12 @@ paused_label.write('PAUSED')
 LINE1Y = 0.03
 LINE2Y = 0.13
 CENTERX = 0.8875
-pause_button = graphics.Button(app, 0.02, 0.02, CENTERX+0.0, LINE1Y, imgpath='pause.png')
-next_button = graphics.Button(app, 0.02, 0.02, CENTERX+0.03, LINE1Y, imgpath='pause.png')
-last_button = graphics.Button(app, 0.02, 0.02, CENTERX+0.06, LINE1Y, imgpath='pause.png')
-prev_button = graphics.Button(app, 0.02, 0.02, CENTERX-0.03, LINE1Y, imgpath='pause.png')
-first_button = graphics.Button(app, 0.02, 0.02, CENTERX-0.06, LINE1Y, imgpath='pause.png')
+SIZE = 0.02
+pause_button = graphics.Button(app, SIZE, SIZE, CENTERX + 0.0, LINE1Y, imgpath='pause.png')
+next_button = graphics.Button(app, SIZE, SIZE, CENTERX + 0.03, LINE1Y, imgpath='pause.png')
+last_button = graphics.Button(app, SIZE, SIZE, CENTERX + 0.06, LINE1Y, imgpath='pause.png')
+prev_button = graphics.Button(app, SIZE, SIZE, CENTERX - 0.03, LINE1Y, imgpath='pause.png')
+first_button = graphics.Button(app, SIZE, SIZE, CENTERX - 0.06, LINE1Y, imgpath='pause.png')
 
 app.track(channel_view)
 app.track(presets)
