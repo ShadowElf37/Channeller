@@ -133,7 +133,7 @@ class RightAlignLabel(Label):
 
 
 class Button(Element):
-    def __init__(self, app, w, h, x, y, text='', img_path=None, img_scale=0.75, cmd=lambda: None, bg='black', fg='white', bdc='white', xoffset=0, yoffset=0, woffset=0, hoffset=0, square=True, **kwargs):
+    def __init__(self, app, w, h, x, y, text='', img_name=None, img_scale=0.85, img_color_mat=None, cmd=lambda: None, bg='black', fg='white', bdc='white', xoffset=0, yoffset=0, woffset=0, hoffset=0, square=True, **kwargs):
         super().__init__(app, w, h, x, y, xoffset, yoffset, woffset, hoffset)
         self.bdc = bdc
         self.fg = fg
@@ -142,10 +142,10 @@ class Button(Element):
         self.text = tk.StringVar()
         self.text.set(text)
         self.img: Image.Image = None
-        self.img_path = img_path
+        self.img_path = img_name
         self.img_scale = img_scale
-        if img_path:
-            self.img = Image.open(self.app.IMG + img_path) # self.app.DIR+'\\'+
+        if img_name:
+            self.img = Image.open(self.img_path).convert('RGBA', img_color_mat)  # gotta do RGBA explicitly for some reason or else transparency will fail  # self.app.DIR+'\\'+
             # Resize img to fit in button
             self.img.thumbnail(size=(int(w*app.w*self.img_scale + woffset), int(h*app.h*self.img_scale if not square else w*app.w*self.img_scale + hoffset)), resample=Image.ANTIALIAS)
             self.tkimg = ImageTk.PhotoImage(self.img)
@@ -156,13 +156,53 @@ class Button(Element):
 
     def draw(self):
         if super().draw():
-            print(self.app.w)
-            self.img = Image.open(self.img_path)
+            self.img = Image.open(self.img_path).convert('RGBA')
             self.img.thumbnail(size=(int(self.img_scale*self.w * self.app.w + self.woffset), int(self.img_scale*self.h * self.app.h if not self.square else self.w * self.app.w * self.img_scale + self.hoffset)), resample=Image.ANTIALIAS)
             self.tkimg = ImageTk.PhotoImage(self.img)
             self.button.configure(image=self.tkimg)
-            self.button.configure(height=int(self.h * self.app.h) if not self.square else int(self.w * self.app.w))  # overloads draw
+            self.button.configure(height=int(self.h * self.app.h) if not self.square else int(self.w * self.app.w))  # overloads draw's window-shaped rectangle
 
+
+class Incrementor(Element):
+    def __init__(self, app, step=1, min=0, max=100, w=0, x=0, y=0, bg='white', fg='black', border_color='black', border_width=0,
+                 xoffset=1, yoffset=1, woffset=0, hoffset=0, fontscale=1.0, buttonbg='white', **kwargs):
+        super().__init__(app, w, 0, x, y, xoffset, yoffset, woffset, hoffset)
+        self.bg = bg
+        self.fg = fg
+        self.bdc = border_color
+        self.bdw = border_width
+        self.pre = ''
+        self.fontscale = fontscale
+        self.step = step
+        self.min = min
+        self.max = max
+        self.buttonbg = buttonbg
+
+        self.RELIEF = 'raised'
+        self.inc = self.register(tk.Spinbox(self.root, from_=min, to=max, increment=step, width=int(w), buttonbackground=buttonbg, buttonuprelief=self.RELIEF, buttondownrelief=self.RELIEF, highlightthickness=0, relief=self.RELIEF, bg=bg, fg=fg, bd=self.bdw, font=(self.app.FONT, self.fontsize), **kwargs))
+        self.inc.place(x=x*app.w, y=y*app.h)
+
+    @property
+    def fontsize(self):
+        return int(self.app.FONTSCALE * self.fontscale * self.app.w / self.app.W)
+
+    def set(self, val):
+        self.inc.delete(0, 'end')
+        self.inc.insert(0, val)
+    def get(self):
+        return self.inc.get()
+
+    def draw(self):
+        if self.check_resize():  # Check for updates before we waste cycles on this
+            self.ow = self.app.w
+            self.oh = self.app.h
+            for elem in self.tk_elements:
+                elem.configure(width=int(self.w), font=(self.app.FONT, self.fontsize), buttonuprelief=self.RELIEF, buttondownrelief=self.RELIEF )
+                elem.place_forget()
+                elem.place(x=int(self.x * self.app.w + self.xoffset),
+                           y=int(self.y * self.app.h + self.yoffset))
+            return True
+        return False
 
 class ProgressBar(Element):
     def __init__(self, app, canvas, w=1.0, h=1.0, x=0, y=0, bg='black', fill_color='green', border_color='black', border_width=0, xoffset=0, yoffset=0, woffset=0, hoffset=0, initial_pct=0, **kwargs):
@@ -174,7 +214,6 @@ class ProgressBar(Element):
         self.canvas: Canvas = canvas
         self.tk_canvas: tk.Canvas = canvas.canvas
         self.percent = initial_pct
-
         self.outer = self.tk_canvas.create_rectangle(self.x * self.canvas.w*self.app.w + self.xoffset - self.woffset,
                                                      self.y * self.canvas.h*self.app.h + self.yoffset - self.hoffset,
                                                      self.x * self.canvas.w*self.app.w + self.w * self.canvas.w*self.app.w + self.xoffset + self.woffset,
@@ -189,16 +228,16 @@ class ProgressBar(Element):
     def draw(self):
         self.tk_canvas.delete(self.outer)
         self.tk_canvas.delete(self.inner)
-        coords = self.x * self.canvas.w*self.app.w + self.xoffset - self.woffset,\
+        coords = self.x * self.canvas.w*self.app.w + self.xoffset - self.woffset - 2,\
                  self.y * self.canvas.h*self.app.h + self.yoffset - self.hoffset,\
                  self.x * self.canvas.w*self.app.w + self.w * self.canvas.w*self.app.w + self.xoffset + self.woffset,\
                  self.y * self.canvas.h*self.app.h + self.h * self.canvas.h*self.app.h + self.yoffset + self.hoffset
         self.outer = self.tk_canvas.create_rectangle(*coords, outline=self.bdc)
         self.inner = self.tk_canvas.create_rectangle(coords[0] + 1,
                                                      coords[1] + 1,
-                                                     self.x * self.canvas.w * self.app.w + self.xoffset + (self.w * self.canvas.w * self.app.w  + self.woffset)*self.percent/100,
+                                                     self.x * self.canvas.w * self.app.w + self.xoffset - 1 + (self.w * self.canvas.w * self.app.w  + self.woffset)*self.percent/100,
                                                      coords[3] - 1,
-                                                     outline=None, fill=self.fc)
+                                                     outline=self.bg, fill=self.fc)
 
 
 class App:
@@ -222,6 +261,8 @@ class App:
         self.root.geometry('%sx%s' % (self.W, self.H))
         self.root.configure(background=bg, **kwargs)
         self.root.focus_force()
+
+        # self.root.wm_attributes('-alpha', 0.9)
 
         self.old_window_pos = self.root.winfo_x(), self.root.winfo_y()
         self.elements = []

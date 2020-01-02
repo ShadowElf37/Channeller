@@ -82,6 +82,17 @@ class Channel:
         self.comp_args = dict(threshold=threshold, ratio=ratio, attack=attack, release=release)
         return self  # So you can use this in channel setup files and return the channel
 
+    def get_next(self):
+        if len(self._queue) > self.index+1 > -1:
+            return self._queue[self.index+1]
+    def get_prev(self):
+        if len(self._queue) > self.index-1 > -1:
+            return self._queue[self.index-1]
+    def get_last(self):
+        return self._queue[-1]
+    def get_first(self):
+        return self._queue[0]
+
     def get_current(self):
         return f'<Track {self.index} - "{self.current.name}">'  # yay f-strings
 
@@ -106,15 +117,18 @@ class Channel:
             track.track = tracks[0].overlay(tracks[1]).set_frame_rate(track.track.frame_rate * 2)  # Number of frames doubles in the unification, and that has some side effects
         else:
             track.track = track.track.set_channels(self._channel_count)
-
+        print('comp')
         # Compression
-        track.track = compress_dynamic_range(track.track, **self.comp_args)
-
+        if self.compression:
+            track.track = compress_dynamic_range(track.track, **self.comp_args)
+        print('excomp')
         # Queue
         if i == -1:
             self._queue.append(track)
             return
         self._queue.insert(i, track)
+
+        self.update()
 
     def goto(self, i):
         if len(self._queue) > i > -1:
@@ -160,16 +174,16 @@ class Track:
         self.end = int(end_sec * 1000) if end_sec else None
         self.fade = (int(fade_in*1000) or 1, int(fade_out*1000) or 1)  # Fades of 0.0 crash for some reason, so 1 ms will be preferred as a safety measure
         self.delay = (int(delay_in * 1000), int(delay_out * 1000))
-        self.gain = gain
+        self.gain = gain  # applied in real time
         self.channel = None
         self.repeats = repeat
 
         if f is not None: # File is passed
             with IndustrialGradeWarningSuppressor(): # Shut up no one likes you
                 loaded = AudioSegment.from_file(f)
-                # delay in, start time, end of leading silence, end time, fade in, fade out, preset-gain
+                # delay in, start time, end of leading silence, end time, fade in, fade out
                 self.track = AudioSegment.silent(self.delay[0]) +\
-                             (loaded[self.start + (detect_leading_silence(loaded) if cut_leading_silence else 0):self.end].fade_in(self.fade[0]).fade_out(self.fade[1]) + gain)
+                             (loaded[self.start + (detect_leading_silence(loaded) if cut_leading_silence else 0):self.end].fade_in(self.fade[0]).fade_out(self.fade[1]))
                 # repeats; track + delay + track + ...
                 if repeat_transition_is_xf: # delay
                     for _ in range(repeat):
@@ -211,7 +225,8 @@ class Track:
                 break  # Kills thread
             if self.paused:
                 self.pause_lock.acquire()  # yay Locks; blocks until released in resume()
-            self.stream.write((chunk + self.channel.gain)._data)  # Live channel.gain editing is possible because it's applied to each 50 ms chunk in real time
+
+            self.stream.write((chunk + self.channel.gain + self.gain)._data)  # Live gain editing is possible because it's applied to each 50 ms chunk in real time
             self.play_time += CHUNK
             # print(self.play_time)
         self._renew()  # Thread automatically renewed because I don't want to do this manually
