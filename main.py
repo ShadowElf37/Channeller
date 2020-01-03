@@ -42,7 +42,7 @@ class Manager:
 
     def stop_all(self):
         for c in self.channels.values():
-            c.stop()
+            c.stop_all()
 
     def create_channel(self, name, color, gain, mono=False, slot=None):
         self.channels[name] = c = audio.Channel(name, color, gain, mono=mono)
@@ -52,6 +52,7 @@ class Manager:
         return c
 
     def generate_views(self):
+        print(self.channels)
         for name, c in self.channels.items():
             self.views[name] = v = views.ChannelView(self.app, c, self._slots[name])
             self.app.track(v)
@@ -74,6 +75,38 @@ class Manager:
         for view in self.views.values():
             view.shifty(d*self.SCROLLSHIFT)
 
+    def scrub(self, e):
+        x = e.x
+        y = e.y
+        v = None
+        c = None
+        for view in self.views.values():
+            if view.channel_view.canvas == e.widget:
+                v = view
+                c: audio.Channel = v.channel
+                break
+        if v is None:
+            return
+
+        scrubber_box = v.timebar.coords
+        if graphics.in_box(x, y, *scrubber_box):
+            x1 = scrubber_box[0]
+            x2 = scrubber_box[2]
+            frac = (x - x1) / (x2 - x1)
+            time = c.current.length * frac
+            if c.current.paused:
+                c.current.stop()
+                c.current.start_at(time)
+                c.current.play()
+                c.current.pause()
+            elif c.current.playing:
+                c.current.stop()
+                c.current.start_at(time)
+                c.current.play()
+            else:
+                c.current.stop()
+                c.current.start_at(time)
+
     def load_channels(self, file):
         # The file should be formatted as line-by-line Channel instantiations
         with open(file, 'r') as f:
@@ -81,17 +114,23 @@ class Manager:
 
 
 # Program
+"""
+root.bind('<F5>', toggle_fullscreen)
+root.bind('<Alt_L>', alt_tab)
+root.bind('<Win_L>', alt_tab)
+"""
 
-app = graphics.App(700, 300, bg='#0a0a0a')
+app = graphics.App(700, 300, bg='#080808')
 m = Manager(app)
 m.create_channel('SFX 1', '#F00', 1.0)
 m.create_channel('SFX 2', '#F00', 1.0)
 m.create_channel('Soundtrack', '#F60', 1.0, slot=3)
 
 t = audio.Track('From Peak to Peak.wav')
-m.chget('SFX 1').queue(t)
-m.chget('SFX 2').queue(t)
+m.chget('SFX 1')
+m.chget('SFX 2')
 m.chget('Soundtrack').queue(t)
+m.chget('Soundtrack').queue(audio.Track('Rap God.wav'))
 
 m.generate_views()
 
@@ -113,11 +152,12 @@ app.bind('MouseWheel', m.scroll)
 app.bind("Button-4", m.scroll)
 app.bind("Button-5", m.scroll)
 
-# SUBPROC FOR EACH CHANNEL, THREAD SONGS INSIDE OR SOMETHING todo
-# CFG todo
+app.bind_all('Button-1', m.scrub)
 
-# COMP NEEDS TO BE REALTIME IT'S TOO EXPENSIVE todo
-# INCREASE CHUNK SIZE TO 500 ms SO COMP WORKS CORRECTLY
+# SUBPROC FOR EACH CHANNEL, THREAD SONGS INSIDE OR SOMETHING todo
+# CHAN, TRACK CFG
+# TR GAIN ADJUST
+# REMOVE COMP AND GAIN INDICATORS
 
 app.run()
 

@@ -4,6 +4,10 @@ import os
 from time import sleep
 from copy import deepcopy
 
+def in_box(x, y, x1, y1, x2, y2):
+    return x2 > x > x1 and y2 > y > y1
+
+
 class Element:
     def __init__(self, app, w, h, x, y, xoffset=0, yoffset=0, woffset=0, hoffset=0):
         self.app: App = app
@@ -18,6 +22,7 @@ class Element:
         self.hoffset = hoffset
         self.tk_elements: [tk.Widget] = []
         self.need_update = True
+        app.track(self)
 
     def check_resize(self):
         return self.app.check_resize()
@@ -207,29 +212,23 @@ class ProgressBar(Element):
         self.canvas: Canvas = canvas
         self.tk_canvas: tk.Canvas = canvas.canvas
         self.percent = initial_pct
-        self.outer = self.tk_canvas.create_rectangle(self.x * self.canvas.w*self.app.w + self.xoffset - self.woffset,
-                                                     self.y * self.canvas.h*self.app.h + self.yoffset - self.hoffset,
-                                                     self.x * self.canvas.w*self.app.w + self.w * self.canvas.w*self.app.w + self.xoffset + self.woffset,
-                                                     self.y * self.canvas.h*self.app.h + self.h * self.canvas.h*self.app.h + self.yoffset + self.hoffset,
-                                                     outline=self.bdc)
-        self.inner = self.tk_canvas.create_rectangle(self.x * self.canvas.w*self.app.w + self.xoffset - self.woffset + 1,
-                                                     self.y * self.canvas.h*self.app.h + self.yoffset - self.hoffset + 1,
-                                                     self.x * self.canvas.w * self.app.w + self.xoffset + (self.w * self.canvas.w * self.app.w + self.woffset) * self.percent / 100,
-                                                     self.y * self.canvas.h*self.app.h + self.h * self.canvas.h*self.app.h + self.yoffset + self.hoffset - 1,
-                                                     outline=self.bg, fill=self.fc)
+
+        # Executive decision: these will be created in draw
+        self.outer = None
+        self.inner = None
 
     def draw(self):
         self.tk_canvas.delete(self.outer)
         self.tk_canvas.delete(self.inner)
-        coords = self.x * self.canvas.w*self.app.w + self.xoffset - self.woffset - 2,\
+        self.coords = self.x * self.canvas.w*self.app.w + self.xoffset - self.woffset - 2,\
                  self.y * self.canvas.h*self.app.h + self.yoffset - self.hoffset,\
                  self.x * self.canvas.w*self.app.w + self.w * self.canvas.w*self.app.w + self.xoffset + self.woffset,\
                  self.y * self.canvas.h*self.app.h + self.h * self.canvas.h*self.app.h + self.yoffset + self.hoffset
-        self.outer = self.tk_canvas.create_rectangle(*coords, outline=self.bdc)
-        self.inner = self.tk_canvas.create_rectangle(coords[0] + 1,
-                                                     coords[1] + 1,
+        self.outer = self.tk_canvas.create_rectangle(*self.coords, outline=self.bdc)
+        self.inner = self.tk_canvas.create_rectangle(self.coords[0] + 1,
+                                                     self.coords[1] + 1,
                                                      self.x * self.canvas.w * self.app.w + self.xoffset + (self.w * self.canvas.w * self.app.w  + self.woffset)*self.percent,
-                                                     coords[3] - 1,
+                                                     self.coords[3] - 1,
                                                      outline=self.bg, fill=self.fc)
 
 
@@ -266,6 +265,8 @@ class App:
 
     def bind(self, key, f):
         self.root.bind('<%s>'%key, f)
+    def bind_all(self, key, f):
+        self.root.bind_all('<%s>'%key, f)
 
     def check_resize(self):
         return self.ow != self.w or self.oh != self.h

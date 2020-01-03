@@ -80,15 +80,14 @@ class ChannelView:
                                     border_color=self.color)
 
         # PRESETS
-        self.compression_label = graphics.Label(app, '', y=0.01 + y_off, fg=self.FG_1, bg=self.BG)
-        self.compression_label.define_pre_label('COMP ')
-        self.gain_label = graphics.Label(app, '', y=0.06 + y_off, fg=self.FG_1, bg=self.BG)
-        self.gain_label.define_pre_label('GAIN ')
+        #self.compression_label = graphics.Label(app, '', y=0.01 + y_off, fg=self.FG_1, bg=self.BG)
+        #self.compression_label.define_pre_label('COMP ')
+        #self.gain_label = graphics.Label(app, '', y=0.06 + y_off, fg=self.FG_1, bg=self.BG)
+        #self.gain_label.define_pre_label('GAIN ')
         self.mono_label = graphics.Label(app, '', y=0.11 + y_off, fg=self.FG_1, bg=self.BG)
 
         # TRACK NAME
         self.track_name_label = graphics.Label(app, '', x=0.1, y=0.002 + y_off, fontscale=1.3, fg=self.FG_2, bg=self.BG)
-        self.track_name_label.write('"%s" - %s' % (self.current.name, self.channel.index))
 
         # TIME
         self.elapsed_label = graphics.Label(app, '', x=0.12, y=0.16 + y_off, yoffset=-10, fontscale=0.9, fg=self.FG_2,
@@ -152,25 +151,16 @@ class ChannelView:
                                                 yoffset=0,
                                                 bg='#000', fg=self.color, buttonbg=self.BUTTONBG, fontscale=1)
 
-        app.track(self.channel_view, self.presets, self.buttons)
-        app.track(self.compression_label, self.gain_label, self.mono_label)
-        app.track(self.track_name_label, self.elapsed_label, self.total_label)
-        app.track(self.next_label, self.prev_label, self.channel_label, self.paused_label)
-        app.track(self.timebar)
-        app.track(self.pause_button, self.next_button, self.last_button, self.prev_button, self.first_button,
-                  self.stop_button)
-        app.track(self.ch_gain_label, self.tr_gain_label)
-        app.track(self.ch_gain_inc, self.tr_gain_inc)
-
         self.parts = (
             self.channel_view, self.presets, self.buttons,
-            self.compression_label, self.gain_label, self.mono_label,
+            self.mono_label,  # Removed gain and comp labels
             self.track_name_label, self.elapsed_label, self.total_label,
             self.next_label, self.prev_label, self.channel_label, self.paused_label, # no timebar
             self.pause_button, self.next_button, self.last_button, self.prev_button, self.first_button,
             self.stop_button, self.ch_gain_label, self.tr_gain_label, self.ch_gain_inc, self.tr_gain_inc
         )
 
+        app.track(self)
         self.update_labels()
         self.update_times()
         self.ch_gain_inc.set(str(self.channel.gain))
@@ -200,10 +190,11 @@ class ChannelView:
         self.channel.stop()
 
     def update_labels(self):
-        self.compression_label.write(self.compression)
-        self.gain_label.write(self.gain)
+        #self.compression_label.write(self.compression)
+        #self.gain_label.write(self.gain)
         self.mono_label.write(self.stereo)
 
+        self.track_name_label.write('%s - %s' % (self.current.name, self.channel.index))
         self.prev_label.write(self.prev)
         self.next_label.write(self.next)
 
@@ -255,11 +246,11 @@ class CueViewer:
     FG_1 = '#eee'
     FG_2 = '#0c0'
     FG_3 = '#dc0'
-    BG = '#444'
+    BG = '#3f3f3f'
     BD = '#aaa'
     BBG_1 = '#f33'
     ABBG_1 = '#f88'
-    BBG_2 = '#00a'
+    BBG_2 = '#048'
     ABBG_2 = '#688'
 
     def __init__(self, app, cue_manager):
@@ -286,10 +277,7 @@ class CueViewer:
         self.go_button = graphics.Button(app, w=0.02, h=0.06, x=0.95, y=0.92, xoffset=-4, img_name=self.app.IMG + 'go.png', background=self.BBG_2, activebackground=self.ABBG_2, cmd=self.cm.do,
                                          img_scale=1.05)
 
-        app.track(self, self.box,
-                  self.prev_label, self.next_label, self.current_label, self.next_cmd,
-                  self.prev_button, self.next_button,
-                  self.go_button, self.stop_all_button)
+        app.track(self)
 
     def draw(self):
         i = self.cm.i

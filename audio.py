@@ -32,11 +32,10 @@ def detect_leading_silence(sound, silence_threshold=-50.0, chunk_size=10):
 
 
 
-
 class Channel:
     def __init__(self, name='Unnamed Channel', color='#FFF', gain=0.0, mono=False):
         self.gain = gain
-        self.current: Track = None
+        self.current: Track = Track(None)
         self._queue: [Track] = []
         self.index = 0
         self._channel_count = 1 if mono else 2
@@ -140,12 +139,15 @@ class Channel:
     def first(self):
         self.goto(0)
     def last(self):
-        self.goto(len(self._queue))
+        self.goto(len(self._queue)-1)
 
     def play(self):
         self.current.play()
     def stop(self):
         self.current.stop()
+    def stop_all(self):
+        for track in self._queue:
+            track.stop()
     def pause(self):
         self.current.pause()
     def resume(self):
@@ -179,9 +181,10 @@ class Track:
         self.delay = (int(delay_in * 1000), int(delay_out * 1000))
         self.gain = gain  # applied in real time
         self.channel = None
+        self.empty = f is None
         self.repeats = repeat
 
-        if f is not None: # File is passed
+        if not self.empty: # File is passed
             with IndustrialGradeWarningSuppressor(): # Shut up no one likes you
                 loaded = AudioSegment.from_file(f)
                 # delay in, start time, end of leading silence, end time, fade in, fade out
@@ -201,10 +204,11 @@ class Track:
 
         self.initially_mono = False if self.track.channels > 1 else True
 
-        self.stream = PA.open(format=PA.get_format_from_width(self.track.sample_width),
-                              channels=self.track.channels,
-                              rate=self.track.frame_rate,
-                              output=True)  # Audio out
+        if not self.empty:
+            self.stream = PA.open(format=PA.get_format_from_width(self.track.sample_width),
+                                  channels=self.track.channels,
+                                  rate=self.track.frame_rate,
+                                  output=True)  # Audio out
         self.pause_lock = Lock()
         self.playing = False
         self.paused = False
@@ -226,7 +230,6 @@ class Track:
     def _play(self):
         self.playing = True
         self.old = True
-        self.play_time = 0
         print('playing')
         for chunk in make_chunks(self.track[self.temp_start:self.temp_end], CHUNK):
             if not self.playing:
@@ -245,7 +248,6 @@ class Track:
                 self.queue_index += 1
             # print(self.play_time)
         self._renew()  # Thread automatically renewed because I don't want to do this manually
-        self.play_time = 0
 
     def _renew(self):
         if self.old:
@@ -253,6 +255,8 @@ class Track:
             self.queue_index = 0
             self.temp_start = 0
             self.temp_end = int(self.length*1000)
+            print('RENEW')
+            self.playing = False
             self.thread = Thread(target=self._play, daemon=True)
 
     def at_time(self, sec, *f):
@@ -270,18 +274,22 @@ class Track:
 
 
     def start_at(self, sec=None):
+        self.old = True
         self._renew()
         if sec:
             self.temp_start = int(sec*1000)
         self.play_time = self.temp_start
         # Fetch the nearest queue item by distance to self.temp_start, find it's index, assign to queue_index
-        self.queue_index = sorted([(abs(dat[0]-self.temp_start), i) for i,dat in enumerate(self.at_time_queue)], key=lambda i: i[0])[0][1]
+        if self.at_time_queue:
+            self.queue_index = sorted([(abs(dat[0]-self.temp_start), i) for i,dat in enumerate(self.at_time_queue)], key=lambda i: i[0])[0][1]
     def end_at(self, sec=None):
         self._renew()
         if sec:
             self.temp_end = int(sec * 1000)
 
     def play(self):
+        if self.empty:
+            return
         print('threading')
         # Must call renew() if playing multiple times due to threads being unable to restart
         try:
@@ -306,6 +314,11 @@ class Track:
             self.playing = False
         if self.paused:
             self.resume()
+        self.play_time = 0
+        try:
+            self.thread.join(0.2)
+        except RuntimeError:
+            pass
 
     def _die(self):
         # Track cannot be played anymore once this is called
