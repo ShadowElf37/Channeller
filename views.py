@@ -67,6 +67,7 @@ class ChannelView:
         self.color = channel.color
         y_off *= self.SPACING
         self.y = y_off
+        self.scroll_y = 0
 
         # DIVS
         self.channel_view = graphics.Canvas(app, 0.7, 0.2, 0.1, 0.0 + y_off, bg=self.BG, border_width=1,
@@ -232,9 +233,17 @@ class ChannelView:
             pass
 
     def shifty(self, y):
+        self.scroll_y += y
         for part in self.parts:
             part.yoffset += y
             part.need_update = True
+
+    def reset_shifty(self):
+        for part in self.parts:
+            part.yoffset -= self.scroll_y
+            part.need_update = True
+        self.scroll_y = 0
+
 
     def draw(self):
         self.update_times()

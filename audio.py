@@ -264,6 +264,8 @@ class Track:
     def stop(self):
         if self.playing:
             self.playing = False
+        if self.paused:
+            self.resume()
 
     def _die(self):
         # Track cannot be played anymore once this is called

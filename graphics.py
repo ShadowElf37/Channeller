@@ -31,22 +31,18 @@ class Element:
         self.woffset = woffset
         self.hoffset = hoffset
         self.tk_elements: [tk.Widget] = []
-        self.ow = self.app.w
-        self.oh = self.app.h
-        self.need_update = False
+        self.need_update = True
+
+    def check_resize(self):
+        return self.app.check_resize()
 
     def register(self, e):
         self.tk_elements.append(e)
         return e
 
-    def check_resize(self):
-        return self.ow != self.app.w or self.oh != self.app.h
-
     def draw(self):
         if self.check_resize() or self.need_update:  # Check for updates before we waste cycles on this
             self.need_update = False
-            self.ow = self.app.w
-            self.oh = self.app.h
             for elem in self.tk_elements:
                 elem.configure(width=int(self.w * self.app.w + self.woffset),
                                height=int(self.h * self.app.h + self.hoffset))
@@ -204,9 +200,9 @@ class Incrementor(Element):
         return self.inc.get()
 
     def draw(self):
-        if self.check_resize():  # Check for updates before we waste cycles on this
-            self.ow = self.app.w
-            self.oh = self.app.h
+        # Same as parent but without height because you can't specify height for this
+        if self.check_resize() or self.need_update:  # Check for updates before we waste cycles on this
+            self.need_update = False
             for elem in self.tk_elements:
                 elem.configure(width=int(self.w), font=(self.app.FONT, self.fontsize), buttonuprelief=self.RELIEF, buttondownrelief=self.RELIEF )
                 elem.place_forget()
@@ -259,8 +255,8 @@ class App:
         self.ICON = self.DIR + '\\favicon.ico'
         self.CFG = self.DIR + '\\config\\'
         self.IMG = self.DIR + '\\images\\'
-        self.W = self.w = width  # w and h are current width and height; W and H are original
-        self.H = self.h = height
+        self.W = self.w = self.ow = width  # w and h are current width and height; W and H are original
+        self.H = self.h = self.oh = height
         self.framerate = 60
 
         self.fullscreen = False
@@ -273,12 +269,20 @@ class App:
         self.root.configure(background=bg, **kwargs)
         self.root.focus_force()
 
+        self.on_resize = lambda: None
+
         # self.root.wm_attributes('-alpha', 0.9)
 
         self.old_window_pos = self.root.winfo_x(), self.root.winfo_y()
         self.elements = []
 
         self.running = True
+
+    def bind(self, key, f):
+        self.root.bind('<%s>'%key, f)
+
+    def check_resize(self):
+        return self.ow != self.w or self.oh != self.h
 
     def update_size(self):
         self.w = self.root.winfo_width()
@@ -320,9 +324,13 @@ class App:
         try:
             while self.running:
                 self.update_size()
+                if self.check_resize():
+                    self.on_resize()
                 self.draw_elements()
                 self.root.update()
                 self.root.update_idletasks()
+                self.ow = self.w
+                self.oh = self.h
                 sleep(1/self.framerate)
         except (KeyboardInterrupt, SystemExit, tk.TclError) as e:
             print('Application destroyed – %s' % e)

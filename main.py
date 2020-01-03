@@ -15,15 +15,25 @@ config_file = fd.askopenfilename(initialdir=CFG, title="Select config file",
 root.destroy()
 """
 
-
 class Manager:
-    SCROLLSHIFT = 50
     def __init__(self, app):
         self.channels: {str:audio.Channel} = {}
         self.views: {str:views.ChannelView} = {}
         self._slots = {}
         self.i = 0
         self.app = app
+        self.total_scroll = 0
+        self.app.on_resize = self.recalculate_scroll_on_resize
+
+    @property
+    def SCROLLSHIFT(self):
+        return self.app.h//10
+
+    def recalculate_scroll_on_resize(self):
+        # Since the scroll increment changes dynamically to 1/10 of the window height, the scroll y needs to be recalculated on window resize
+        for view in self.views.values():
+            view.reset_shifty()
+            view.shifty(self.total_scroll * self.SCROLLSHIFT)
 
     def chget(self, name):
         return self.channels.get(name)
@@ -42,14 +52,21 @@ class Manager:
             self.views[name] = v = views.ChannelView(self.app, c, self._slots[name])
             self.app.track(v)
 
-    def scroll(self, e=None):
+    def scroll(self, e):
         if e.num == 4 or e.delta == 120:
-            d = 1
+            d = 1  # Up
         elif e.num == 5 or e.delta == -120:
-            d = -1
+            d = -1  # Down
         else:
             return
 
+        # max in SCROLL SHIFTS, i.e. tenths
+        max_up = 8
+        max_down = -max(self._slots.values())*2
+        if (self.total_scroll == max_up and d == 1) or (self.total_scroll == max_down and d == -1):
+            return
+
+        self.total_scroll += d
         for view in self.views.values():
             view.shifty(d*self.SCROLLSHIFT)
 
@@ -73,11 +90,12 @@ m.chget('SFX 2').queue(t)
 m.chget('Soundtrack').queue(t)
 
 m.generate_views()
+app.bind('MouseWheel', m.scroll)
+app.bind("Button-4", m.scroll)
+app.bind("Button-5", m.scroll)
 
-# SCROLLING todo
 # SUBPROC FOR EACH CHANNEL, THREAD SONGS INSIDE OR SOMETHING todo
 # GLOBAL CUES todo
-# BUG: STOP IS BROKEN WHEN PAUSED todo
 # CFG todo
 
 # COMP NEEDS TO BE REALTIME IT'S TOO EXPENSIVE todo
