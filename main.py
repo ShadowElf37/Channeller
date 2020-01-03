@@ -1,9 +1,9 @@
 import json
-import graphics, audio, views
+import graphics, audio, views, cues
 import tkinter as tk
 from tkinter import filedialog as fd
 
-settings = json.load(open('config/std.json'))
+settings = json.load(open('config/settings.json'))
 
 """
 # Read Config
@@ -17,8 +17,8 @@ root.destroy()
 
 class Manager:
     def __init__(self, app):
-        self.channels: {str:audio.Channel} = {}
-        self.views: {str:views.ChannelView} = {}
+        self.channels: {str: audio.Channel} = {}
+        self.views: {str: views.ChannelView} = {}
         self._slots = {}
         self.i = 0
         self.app = app
@@ -39,6 +39,10 @@ class Manager:
         return self.channels.get(name)
     def vget(self, name):
         return self.views.get(name)
+
+    def stop_all(self):
+        for c in self.channels.values():
+            c.stop()
 
     def create_channel(self, name, color, gain, mono=False, slot=None):
         self.channels[name] = c = audio.Channel(name, color, gain, mono=mono)
@@ -90,12 +94,26 @@ m.chget('SFX 2').queue(t)
 m.chget('Soundtrack').queue(t)
 
 m.generate_views()
+
+cm = cues.CueManager(m)
+cv = views.CueViewer(app, cm)
+cm.locals = {
+    'cues': cm,
+    'manager': m,
+    'chan': m.chget,
+    'channel': m.chget,
+    'view': m.vget,
+    'stop_all': m.stop_all
+}
+cm.load_file(app.CFG + 'cues.cfg')
+
+# Windows
 app.bind('MouseWheel', m.scroll)
+# Linux
 app.bind("Button-4", m.scroll)
 app.bind("Button-5", m.scroll)
 
 # SUBPROC FOR EACH CHANNEL, THREAD SONGS INSIDE OR SOMETHING todo
-# GLOBAL CUES todo
 # CFG todo
 
 # COMP NEEDS TO BE REALTIME IT'S TOO EXPENSIVE todo

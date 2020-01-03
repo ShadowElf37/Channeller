@@ -4,20 +4,6 @@ import os
 from time import sleep
 from copy import deepcopy
 
-def in_box(x, y, x1, y1, x2, y2):
-    return x2 > x > x1 and y2 > y > y1
-
-def htrgb(hex):
-    hex = hex.strip('#')
-    l = len(hex)
-    scalar = 6//l
-    if scalar == 0:
-        raise ArithmeticError('Can\'t solve > 24-bit RGB values')
-    elif scalar == 6:
-        return (int(hex*2, 16),)*3
-    return int(hex[:l//3]*scalar, 16), int(hex[l//3:2*l//3]*scalar, 16), int(hex[2*l//3:]*scalar, 16)
-
-
 class Element:
     def __init__(self, app, w, h, x, y, xoffset=0, yoffset=0, woffset=0, hoffset=0):
         self.app: App = app
@@ -252,9 +238,9 @@ class App:
         self.DIR = os.getcwd()
         self.FONT = 'Lucida Console'
         self.FONTSCALE = 9
-        self.ICON = self.DIR + '\\favicon.ico'
-        self.CFG = self.DIR + '\\config\\'
-        self.IMG = self.DIR + '\\images\\'
+        self.ICON = self.DIR + '/images/favicon.ico'
+        self.CFG = self.DIR + '/config/'
+        self.IMG = self.DIR + '/images/'
         self.W = self.w = self.ow = width  # w and h are current width and height; W and H are original
         self.H = self.h = self.oh = height
         self.framerate = 60

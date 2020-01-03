@@ -90,7 +90,7 @@ class Channel:
         return f'<Track {self.index} - "{self.current.name}">'  # yay f-strings
 
     def fade_gain(self, to, duration):
-        Thread(target=self._fade_gain, args=(to, duration)).start()
+        Thread(target=self._fade_gain, args=(to, duration), daemon=True).start()
     def _fade_gain(self, to, duration, interval=10):
         # interval is in ms
         duration *= 1000
@@ -127,6 +127,8 @@ class Channel:
         if len(self._queue) > i > -1:
             self.index = i
             self.update()
+            return True
+        return False
     def update(self):
         if self._queue:
             self.current = self._queue[self.index]
@@ -156,10 +158,17 @@ class Channel:
         for track in self._queue:
             track._die()
 
+    def play_next(self):
+        if len(self._queue) > self.index+1:
+            self.stop()
+            self.next()
+            self.play()
+
+    go = play_next
+
 
 class Track:
     def __init__(self, f, name='', start_sec=0.0, end_sec=None, fade_in=0.0, fade_out=0.0, delay_in=0.0, delay_out=0.0, gain=0.0, repeat=0, repeat_transition_duration=0.1, repeat_transition_is_xf=False, cut_leading_silence=False):
-        # NOTE: gain here is PRESET and CANNOT BE CHANGED DURING RUNTIME; apply runtime gain changes in the track's CHANNEL
         # If repeat_transition_xf is False then a delay will be used with repeat_transition_duration; if True, it will crossfade
         # Setting fade_in and fade_out to 0.0 will crash
         self.f = f
@@ -202,6 +211,9 @@ class Track:
         self.play_time = 0  # ms
         self.temp_start = 0 # ms
         self.temp_end = int(self.length*1000)
+        self.at_time_queue = []
+        self.queue_index = 0
+        self.old = False  # False until played; False when renewed, to make sure you don't renew it multiple times
 
         self.thread = Thread(target=self._play, daemon=True)
 
@@ -213,6 +225,7 @@ class Track:
 
     def _play(self):
         self.playing = True
+        self.old = True
         self.play_time = 0
         print('playing')
         for chunk in make_chunks(self.track[self.temp_start:self.temp_end], CHUNK):
@@ -225,20 +238,44 @@ class Track:
             #print('round')
             self.stream.write((chunk + self.channel.gain + self.gain)._data)  # Live gain editing is possible because it's applied to each 50 ms chunk in real time
             self.play_time += CHUNK
+            if self.queue_index != len(self.at_time_queue) and abs(self.at_time_queue[self.queue_index][0] - self.play_time) < CHUNK:
+                # If within a CHUNK of the execution time
+                for f in self.at_time_queue[self.queue_index][1]:
+                    f()
+                self.queue_index += 1
             # print(self.play_time)
         self._renew()  # Thread automatically renewed because I don't want to do this manually
         self.play_time = 0
 
     def _renew(self):
-        self.temp_start = 0
-        self.temp_end = int(self.length*1000)
-        self.thread = Thread(target=self._play, daemon=True)
+        if self.old:
+            self.old = False
+            self.queue_index = 0
+            self.temp_start = 0
+            self.temp_end = int(self.length*1000)
+            self.thread = Thread(target=self._play, daemon=True)
+
+    def at_time(self, sec, *f):
+        q = self.at_time_queue
+        ms = int(sec*1000)
+        data = (ms, f)
+        if not q:  # Empty queue, just append
+            q.append(data)
+        else:  # Iterate through the queue until we hit something that's larger; if there's nothing larger, append
+            for i, item in enumerate(q):
+                if item[0] > ms:
+                    q.insert(i, data)
+                    return
+            q.append(data)
+
 
     def start_at(self, sec=None):
         self._renew()
         if sec:
             self.temp_start = int(sec*1000)
         self.play_time = self.temp_start
+        # Fetch the nearest queue item by distance to self.temp_start, find it's index, assign to queue_index
+        self.queue_index = sorted([(abs(dat[0]-self.temp_start), i) for i,dat in enumerate(self.at_time_queue)], key=lambda i: i[0])[0][1]
     def end_at(self, sec=None):
         self._renew()
         if sec:
@@ -247,7 +284,10 @@ class Track:
     def play(self):
         print('threading')
         # Must call renew() if playing multiple times due to threads being unable to restart
-        self.thread.start()
+        try:
+            self.thread.start()
+        except RuntimeError:
+            print('PLEASE RENEW BEFORE YOU DO THAT')
 
     def wait(self):
         self.thread.join()
@@ -279,17 +319,10 @@ class Track:
         self.track = self.track.append(track.track, int(crossfade*1000))
 
 if __name__ == "__main__":
-    manager = Manager()
-    manager.load_channels('config/test.cfg')
-    print(manager.channels)
     chan = Channel(gain=-1.0)
-    chan.queue(Track("From Peak to Peak.wav"))
+    chan.queue(t := Track("From Peak to Peak.wav"))
     # chan.queue(Track("Autumn's Last Breath.mp3"))  # mp3 broke
-    print(chan.current)
     chan.update()
-    print(chan._queue)
     chan.play()
-    sleep(2)
-    chan.fade_gain(1.0, 3)
     chan.wait()
     chan.close()

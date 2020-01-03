@@ -1,5 +1,6 @@
 import audio
 import graphics
+import cues
 
 def hms(sec):
     sec = int(sec)
@@ -244,8 +245,55 @@ class ChannelView:
             part.need_update = True
         self.scroll_y = 0
 
-
     def draw(self):
         self.update_times()
         self.update_gains()
         self.update_labels()
+
+
+class CueViewer:
+    FG_1 = '#eee'
+    FG_2 = '#0c0'
+    FG_3 = '#dc0'
+    BG = '#444'
+    BD = '#aaa'
+    BBG_1 = '#f33'
+    ABBG_1 = '#f88'
+    BBG_2 = '#00a'
+    ABBG_2 = '#688'
+
+    def __init__(self, app, cue_manager):
+        self.cm: cues.CueManager = cue_manager
+        self.app = app
+
+        self.box = graphics.Div(app, w=0.8, h=0.1, x=0.1, y=0.9, bg=self.BG, border_color=self.BD, border_width=1, yoffset=1, hoffset=2)
+
+        self.prev_label = graphics.Label(app, x=0.105, y=0.915, fg=self.FG_1, bg=self.BG, fontscale=0.8)
+        self.prev_label.define_pre_label('Last: ')
+        self.next_label = graphics.Label(app, x=0.105, y=0.955, fg=self.FG_1, bg=self.BG, fontscale=0.8)
+        self.next_label.define_pre_label('Next: ')
+
+        self.current_label = graphics.Label(app, x=0.35, y=0.905, yoffset=1, fg=self.FG_2, bg=self.BG, fontscale=1.4)
+        self.current_label.define_pre_label('Now: ')
+        self.next_cmd = graphics.Label(app, x=0.35, y=0.945, yoffset=7, fg=self.FG_3, bg=self.BG, fontscale=0.7, h=0.01, anchor='n')
+
+
+        self.prev_button = graphics.Button(app, w=0.02, h=0.06, x=0.065, y=0.92, img_name=self.app.IMG + 'first.png', background=self.BBG_1, activebackground=self.ABBG_1, cmd=self.cm.back)
+        self.next_button = graphics.Button(app, w=0.02, h=0.06, x=0.915, y=0.92, xoffset=-4, img_name=self.app.IMG + 'last.png', background=self.BBG_1, activebackground=self.ABBG_1, cmd=self.cm.next)
+
+        self.stop_all_button = graphics.Button(app, w=0.02, h=0.06, x=0.029, y=0.92, img_name=self.app.IMG + 'stop2.png', background=self.BBG_2, activebackground=self.ABBG_2, cmd=self.cm.m.stop_all,
+                                               img_scale=0.98)
+        self.go_button = graphics.Button(app, w=0.02, h=0.06, x=0.95, y=0.92, xoffset=-4, img_name=self.app.IMG + 'go.png', background=self.BBG_2, activebackground=self.ABBG_2, cmd=self.cm.do,
+                                         img_scale=1.05)
+
+        app.track(self, self.box,
+                  self.prev_label, self.next_label, self.current_label, self.next_cmd,
+                  self.prev_button, self.next_button,
+                  self.go_button, self.stop_all_button)
+
+    def draw(self):
+        i = self.cm.i
+        self.prev_label.write(self.cm.get(i - 1).desc[:25])
+        self.next_label.write(self.cm.get(i + 1).desc[:25])
+        self.current_label.write('Cue {} - '.format(i+1) + self.cm.get(i).desc[:31])
+        self.next_cmd.write(self.cm.get(i).code)
