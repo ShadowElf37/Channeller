@@ -13,7 +13,7 @@ with IndustrialGradeWarningSuppressor():
     from pydub.effects import compress_dynamic_range
 
 PA = pyaudio.PyAudio()
-CHUNK = 50  # 50ms chunks for processing – if it's too low then the overhead gets larger than the chunks are!
+CHUNK = 5  # 50ms chunks for processing – if it's too low then the overhead gets larger than the chunks are!
 
 # Missing pydub feature
 def detect_leading_silence(sound, silence_threshold=-50.0, chunk_size=10):
@@ -31,14 +31,7 @@ def detect_leading_silence(sound, silence_threshold=-50.0, chunk_size=10):
     return trim_ms
 
 
-class Manager:
-    def __init__(self, *channels):
-        self.channels = {name:Channel(name) for name in channels}
 
-    def load_channels(self, file):
-        # The file should be formatted as line-by-line Channel instantiations
-        with open(file, 'r') as f:
-            self.channels = {c.name: c for c in [eval(line) for line in f.readlines() if line[0] != '#']}
 
 class Channel:
     def __init__(self, name='Unnamed Channel', color='#FFF', gain=0.0, mono=False):
@@ -83,10 +76,10 @@ class Channel:
         return self  # So you can use this in channel setup files and return the channel
 
     def get_next(self):
-        if len(self._queue) > self.index+1 > -1:
+        if len(self._queue) > self.index+1:
             return self._queue[self.index+1]
     def get_prev(self):
-        if len(self._queue) > self.index-1 > -1:
+        if self.index-1 > -1:
             return self._queue[self.index-1]
     def get_last(self):
         return self._queue[-1]
@@ -135,7 +128,8 @@ class Channel:
             self.index = i
             self.update()
     def update(self):
-        self.current = self._queue[self.index]
+        if self._queue:
+            self.current = self._queue[self.index]
 
     def next(self):
         self.goto(self.index + 1)
@@ -207,7 +201,7 @@ class Track:
         self.paused = False
         self.play_time = 0  # ms
         self.temp_start = 0 # ms
-        self.temp_end = self.length
+        self.temp_end = int(self.length*1000)
 
         self.thread = Thread(target=self._play, daemon=True)
 
@@ -217,34 +211,41 @@ class Track:
     def length(self):
         return self.track.duration_seconds
 
-    def _play(self, from_=0.0, to=None):
+    def _play(self):
         self.playing = True
         self.play_time = 0
+        print('playing')
         for chunk in make_chunks(self.track[self.temp_start:self.temp_end], CHUNK):
             if not self.playing:
+                print('stop')
                 break  # Kills thread
             if self.paused:
+                print('lock')
                 self.pause_lock.acquire()  # yay Locks; blocks until released in resume()
-
+            #print('round')
             self.stream.write((chunk + self.channel.gain + self.gain)._data)  # Live gain editing is possible because it's applied to each 50 ms chunk in real time
             self.play_time += CHUNK
             # print(self.play_time)
         self._renew()  # Thread automatically renewed because I don't want to do this manually
+        self.play_time = 0
 
     def _renew(self):
         self.temp_start = 0
-        self.temp_end = self.length
+        self.temp_end = int(self.length*1000)
         self.thread = Thread(target=self._play, daemon=True)
 
-    def start_at(self, sec):
+    def start_at(self, sec=None):
         self._renew()
-        self.temp_start = int(sec*1000)
+        if sec:
+            self.temp_start = int(sec*1000)
         self.play_time = self.temp_start
-    def end_at(self, sec):
+    def end_at(self, sec=None):
         self._renew()
-        self.temp_end = int(sec * 1000)
+        if sec:
+            self.temp_end = int(sec * 1000)
 
     def play(self):
+        print('threading')
         # Must call renew() if playing multiple times due to threads being unable to restart
         self.thread.start()
 
@@ -277,15 +278,14 @@ class Track:
 
 if __name__ == "__main__":
     manager = Manager()
-    manager.load_channels('test.cfg')
+    manager.load_channels('config/test.cfg')
     print(manager.channels)
-    PA.terminate()
-
-    exit()
     chan = Channel(gain=-1.0)
     chan.queue(Track("From Peak to Peak.wav"))
     # chan.queue(Track("Autumn's Last Breath.mp3"))  # mp3 broke
-    chan.next()
+    print(chan.current)
+    chan.update()
+    print(chan._queue)
     chan.play()
     sleep(2)
     chan.fade_gain(1.0, 3)

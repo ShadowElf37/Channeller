@@ -2,6 +2,7 @@ import tkinter as tk
 from PIL import Image, ImageTk, ImageTransform, ImageColor
 import os
 from time import sleep
+from copy import deepcopy
 
 def in_box(x, y, x1, y1, x2, y2):
     return x2 > x > x1 and y2 > y > y1
@@ -32,6 +33,7 @@ class Element:
         self.tk_elements: [tk.Widget] = []
         self.ow = self.app.w
         self.oh = self.app.h
+        self.need_update = False
 
     def register(self, e):
         self.tk_elements.append(e)
@@ -41,7 +43,8 @@ class Element:
         return self.ow != self.app.w or self.oh != self.app.h
 
     def draw(self):
-        if self.check_resize():  # Check for updates before we waste cycles on this
+        if self.check_resize() or self.need_update:  # Check for updates before we waste cycles on this
+            self.need_update = False
             self.ow = self.app.w
             self.oh = self.app.h
             for elem in self.tk_elements:
@@ -65,7 +68,6 @@ class Canvas(Element):
         self.bdw = border_width
 
         self.canvas = self.register(tk.Canvas(self.root, width=w*app.w, height=h*app.h, background=bg, highlightthickness=self.bdw, highlightbackground=self.bdc, **kwargs))
-        self.canvas.place(x=x*app.w, y=y*app.h)
 
     def draw(self):
         super().draw()
@@ -81,7 +83,6 @@ class Div(Element):
         self.bdw = border_width
 
         self.box = self.register(tk.Frame(self.root, width=w*app.w, height=h*app.h, background=bg, highlightthickness=self.bdw, highlightbackground=self.bdc, **kwargs))
-        self.box.place(x=x*app.w, y=y*app.h)
 
     def draw(self):
         super().draw()
@@ -98,11 +99,8 @@ class Label(Element):
         self.text.set(text)
         self.pre = ''
         self.fontscale = fontscale
-        self.w /= 10
-        self.h /= 10
 
-        self.label = self.register(tk.Label(self.root, textvar=self.text, width=int(w*app.w), height=int(h*app.h), background=bg, fg=fg, highlightthickness=self.bdw, highlightbackground=self.bdc, font=(self.app.FONT, int(self.app.FONTSCALE*fontscale)), anchor=anchor, **kwargs))
-        self.label.place(x=x*app.w, y=y*app.h)
+        self.label = self.register(tk.Label(self.root, padx=0, pady=0, textvar=self.text, width=int(w*app.w), height=int(h*app.h), background=bg, fg=fg, highlightthickness=self.bdw, highlightbackground=self.bdc, font=(self.app.FONT, int(self.app.FONTSCALE*fontscale)), anchor=anchor, **kwargs))
 
     @property
     def fontsize(self):
@@ -128,12 +126,13 @@ class RightAlignLabel(Label):
         super().__init__(*args, **kwargs)
         self.X = kwargs['x']
     def draw(self):
-        self.x = self.X - (self.fontsize*len(self.read()) / self.app.w)
+        # Some manual scaling was required to keep them aligned; the longer the text, the further off to the left it was
+        self.x = self.X - (((self.fontsize*0.8)*(len(self.read())+2)) / self.app.w)
         super().draw()
 
 
 class Button(Element):
-    def __init__(self, app, w, h, x, y, text='', img_name=None, img_scale=0.85, img_color_mat=None, cmd=lambda: None, bg='black', fg='white', bdc='white', xoffset=0, yoffset=0, woffset=0, hoffset=0, square=True, **kwargs):
+    def __init__(self, app, w, h, x, y, text='', img_name=None, img_scale=0.85, cmd=lambda: None, bg='black', fg='white', bdc='white', xoffset=0, yoffset=0, woffset=0, hoffset=0, square=True, **kwargs):
         super().__init__(app, w, h, x, y, xoffset, yoffset, woffset, hoffset)
         self.bdc = bdc
         self.fg = fg
@@ -144,19 +143,32 @@ class Button(Element):
         self.img: Image.Image = None
         self.img_path = img_name
         self.img_scale = img_scale
+        self.img_cache = {}
+        self.img_update = False
         if img_name:
-            self.img = Image.open(self.img_path).convert('RGBA', img_color_mat)  # gotta do RGBA explicitly for some reason or else transparency will fail  # self.app.DIR+'\\'+
+            self.img = Image.open(self.img_path).convert('RGBA')  # gotta do RGBA explicitly for some reason or else transparency will fail  # self.app.DIR+'\\'+
+            self.img_cache[self.img_path] = deepcopy(self.img)
             # Resize img to fit in button
             self.img.thumbnail(size=(int(w*app.w*self.img_scale + woffset), int(h*app.h*self.img_scale if not square else w*app.w*self.img_scale + hoffset)), resample=Image.ANTIALIAS)
             self.tkimg = ImageTk.PhotoImage(self.img)
             kwargs['image'] = self.tkimg
         self.cmd = cmd
         self.button = self.register(tk.Button(self.root, textvar=self.text, command=cmd, width=w*app.w, height=h*app.h if not self.square else w*app.w, relief='raised', compound='center', **kwargs))
-        self.button.place(x=x*app.w, y=y*app.h)
+
+    def set_img(self, path):
+        self.img_path = path
+        self.img_update = True
+
+    def invoke(self):
+        return self.button.invoke()
 
     def draw(self):
-        if super().draw():
-            self.img = Image.open(self.img_path).convert('RGBA')
+        if super().draw() or self.img_update:
+            self.img_update = False
+            if img := self.img_cache.get(self.img_path):
+                self.img = deepcopy(img)
+            else:
+                self.img = Image.open(self.img_path).convert('RGBA')
             self.img.thumbnail(size=(int(self.img_scale*self.w * self.app.w + self.woffset), int(self.img_scale*self.h * self.app.h if not self.square else self.w * self.app.w * self.img_scale + self.hoffset)), resample=Image.ANTIALIAS)
             self.tkimg = ImageTk.PhotoImage(self.img)
             self.button.configure(image=self.tkimg)
@@ -180,7 +192,6 @@ class Incrementor(Element):
 
         self.RELIEF = 'raised'
         self.inc = self.register(tk.Spinbox(self.root, from_=min, to=max, increment=step, width=int(w), buttonbackground=buttonbg, buttonuprelief=self.RELIEF, buttondownrelief=self.RELIEF, highlightthickness=0, relief=self.RELIEF, bg=bg, fg=fg, bd=self.bdw, font=(self.app.FONT, self.fontsize), **kwargs))
-        self.inc.place(x=x*app.w, y=y*app.h)
 
     @property
     def fontsize(self):
@@ -223,7 +234,7 @@ class ProgressBar(Element):
                                                      self.y * self.canvas.h*self.app.h + self.yoffset - self.hoffset + 1,
                                                      self.x * self.canvas.w * self.app.w + self.xoffset + (self.w * self.canvas.w * self.app.w + self.woffset) * self.percent / 100,
                                                      self.y * self.canvas.h*self.app.h + self.h * self.canvas.h*self.app.h + self.yoffset + self.hoffset - 1,
-                                                     outline=None, fill=self.fc)
+                                                     outline=self.bg, fill=self.fc)
 
     def draw(self):
         self.tk_canvas.delete(self.outer)
@@ -235,7 +246,7 @@ class ProgressBar(Element):
         self.outer = self.tk_canvas.create_rectangle(*coords, outline=self.bdc)
         self.inner = self.tk_canvas.create_rectangle(coords[0] + 1,
                                                      coords[1] + 1,
-                                                     self.x * self.canvas.w * self.app.w + self.xoffset - 1 + (self.w * self.canvas.w * self.app.w  + self.woffset)*self.percent/100,
+                                                     self.x * self.canvas.w * self.app.w + self.xoffset + (self.w * self.canvas.w * self.app.w  + self.woffset)*self.percent,
                                                      coords[3] - 1,
                                                      outline=self.bg, fill=self.fc)
 
@@ -314,5 +325,5 @@ class App:
                 self.root.update_idletasks()
                 sleep(1/self.framerate)
         except (KeyboardInterrupt, SystemExit, tk.TclError) as e:
-            print('Application destroyed: %s' % e)
+            print('Application destroyed – %s' % e)
             self.quit()
