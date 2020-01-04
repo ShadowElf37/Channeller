@@ -168,9 +168,11 @@ class ChannelView:
 
     def cmd_next(self):
         self.channel.next()
+        self.tr_gain_inc.set(self.channel.current.gain)
 
     def cmd_back(self):
         self.channel.back()
+        self.tr_gain_inc.set(self.channel.current.gain)
 
     def cmd_first(self):
         self.channel.first()
@@ -265,7 +267,7 @@ class CueViewer:
         self.next_label.define_pre_label('Next: ')
 
         self.current_label = graphics.Label(app, x=0.35, y=0.905, yoffset=1, fg=self.FG_2, bg=self.BG, fontscale=1.4)
-        self.current_label.define_pre_label('Now: ')
+        #self.current_label.define_pre_label('Now: ')
         self.next_cmd = graphics.Label(app, x=0.35, y=0.945, yoffset=7, fg=self.FG_3, bg=self.BG, fontscale=0.7, h=0.01, anchor='n')
 
 
@@ -283,5 +285,5 @@ class CueViewer:
         i = self.cm.i
         self.prev_label.write(self.cm.get(i - 1).desc[:25])
         self.next_label.write(self.cm.get(i + 1).desc[:25])
-        self.current_label.write('Cue {} - '.format(i+1) + self.cm.get(i).desc[:31])
+        self.current_label.write('Cue {} - '.format(i+1) + self.cm.get(i).desc[:36])
         self.next_cmd.write(self.cm.get(i).code)

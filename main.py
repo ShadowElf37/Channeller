@@ -1,5 +1,6 @@
 import json
 import graphics, audio, views, cues
+from os.path import exists
 import tkinter as tk
 from tkinter import filedialog as fd
 
@@ -19,6 +20,7 @@ class Manager:
     def __init__(self, app):
         self.channels: {str: audio.Channel} = {}
         self.views: {str: views.ChannelView} = {}
+        self.tracks: {str: audio.Track} = {}
         self._slots = {}
         self.i = 0
         self.app = app
@@ -39,6 +41,8 @@ class Manager:
         return self.channels.get(name)
     def vget(self, name):
         return self.views.get(name)
+    def tget(self, name):
+        return self.tracks.get(name)
 
     def stop_all(self):
         for c in self.channels.values():
@@ -97,8 +101,8 @@ class Manager:
             if c.current.paused:
                 c.current.stop()
                 c.current.start_at(time)
-                c.current.play()
                 c.current.pause()
+                c.current.play()
             elif c.current.playing:
                 c.current.stop()
                 c.current.start_at(time)
@@ -108,29 +112,28 @@ class Manager:
                 c.current.start_at(time)
 
     def load_channels(self, file):
-        # The file should be formatted as line-by-line Channel instantiations
-        with open(file, 'r') as f:
-            self.channels = {c.name: c for c in [eval(line) for line in f.readlines() if line[0] != '#']}
+        for channel in json.load(open(file)):
+            self.create_channel(**channel)
+
+    def load_tracks(self, file):
+        data = json.load(open(file))
+        for channel in self.channels.values():
+            if listing := data.get(channel.name):
+                for track in listing:
+                    self.tracks[track.get('name', track['file'])] = t = audio.Track(**track)
+                    channel.queue(t)
 
 
 # Program
-"""
-root.bind('<F5>', toggle_fullscreen)
-root.bind('<Alt_L>', alt_tab)
-root.bind('<Win_L>', alt_tab)
-"""
-
 app = graphics.App(700, 300, bg='#080808')
-m = Manager(app)
-m.create_channel('SFX 1', '#F00', 1.0)
-m.create_channel('SFX 2', '#F00', 1.0)
-m.create_channel('Soundtrack', '#F60', 1.0, slot=3)
 
-t = audio.Track('From Peak to Peak.wav')
-m.chget('SFX 1')
-m.chget('SFX 2')
-m.chget('Soundtrack').queue(t)
-m.chget('Soundtrack').queue(audio.Track('Rap God.wav'))
+app.bind('F5', app.toggle_fullscreen)
+app.bind('Alt_L', app.alt_tab)
+app.bind('Win_L', app.alt_tab)
+
+m = Manager(app)
+m.load_channels(app.CFG + 'channels.json')
+m.load_tracks(app.CFG + 'tracks.json')
 
 m.generate_views()
 
@@ -155,8 +158,9 @@ app.bind("Button-5", m.scroll)
 app.bind_all('Button-1', m.scrub)
 
 # SUBPROC FOR EACH CHANNEL, THREAD SONGS INSIDE OR SOMETHING todo
-# CHAN, TRACK CFG
-# TR GAIN ADJUST
+# TRACK CFG
+# MARKERS
+
 # REMOVE COMP AND GAIN INDICATORS
 
 app.run()

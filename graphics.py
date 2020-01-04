@@ -276,10 +276,9 @@ class App:
         self.h = self.root.winfo_height()
 
     def alt_tab(self, *args):
-        global alt_tabbed, fullscreen
-        if fullscreen:
+        if self.fullscreen:
             self.toggle_fullscreen()
-            alt_tabbed = True
+            self.alt_tabbed = True
 
     def toggle_fullscreen(self, *args):
         if not self.fullscreen:
@@ -288,7 +287,9 @@ class App:
             self.root.overrideredirect(1)  # borderless
             self.fullscreen = True
         elif self.alt_tabbed:
+            self.root.geometry('{}x{}+{}+{}'.format(self.W, self.H, *self.old_window_pos))
             self.root.overrideredirect(0)
+            self.root.focus()
             self.alt_tabbed = False
         else:
             self.root.geometry('{}x{}+{}+{}'.format(self.W, self.H, *self.old_window_pos))

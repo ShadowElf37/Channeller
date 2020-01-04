@@ -3,9 +3,6 @@ from suppressor import IndustrialGradeWarningSuppressor
 from threading import Thread, Lock
 from time import sleep
 
-# TODO
-# def at_time(t, f): thread... # for tracks
-
 with IndustrialGradeWarningSuppressor():
     # Dumb bitch whines a lot
     from pydub import AudioSegment
@@ -133,13 +130,13 @@ class Channel:
             self.current = self._queue[self.index]
 
     def next(self):
-        self.goto(self.index + 1)
+        return self.goto(self.index + 1)
     def back(self):
-        self.goto(self.index - 1)
+        return self.goto(self.index - 1)
     def first(self):
-        self.goto(0)
+        return self.goto(0)
     def last(self):
-        self.goto(len(self._queue)-1)
+        return self.goto(len(self._queue)-1)
 
     def play(self):
         self.current.play()
@@ -170,23 +167,23 @@ class Channel:
 
 
 class Track:
-    def __init__(self, f, name='', start_sec=0.0, end_sec=None, fade_in=0.0, fade_out=0.0, delay_in=0.0, delay_out=0.0, gain=0.0, repeat=0, repeat_transition_duration=0.1, repeat_transition_is_xf=False, cut_leading_silence=False):
+    def __init__(self, file, name='', start_sec=0.0, end_sec=None, fade_in=0.0, fade_out=0.0, delay_in=0.0, delay_out=0.0, gain=0.0, repeat=0, repeat_transition_duration=0.1, repeat_transition_is_xf=False, cut_leading_silence=False):
         # If repeat_transition_xf is False then a delay will be used with repeat_transition_duration; if True, it will crossfade
         # Setting fade_in and fade_out to 0.0 will crash
-        self.f = f
-        self.name = name or f
+        self.f = file
+        self.name = name or file
         self.start = int(start_sec * 1000)
         self.end = int(end_sec * 1000) if end_sec else None
         self.fade = (int(fade_in*1000) or 1, int(fade_out*1000) or 1)  # Fades of 0.0 crash for some reason, so 1 ms will be preferred as a safety measure
         self.delay = (int(delay_in * 1000), int(delay_out * 1000))
         self.gain = gain  # applied in real time
         self.channel = None
-        self.empty = f is None
+        self.empty = file is None
         self.repeats = repeat
 
         if not self.empty: # File is passed
             with IndustrialGradeWarningSuppressor(): # Shut up no one likes you
-                loaded = AudioSegment.from_file(f)
+                loaded = AudioSegment.from_file(file)
                 # delay in, start time, end of leading silence, end time, fade in, fade out
                 self.track = AudioSegment.silent(self.delay[0]) +\
                              (loaded[self.start + (detect_leading_silence(loaded) if cut_leading_silence else 0):self.end].fade_in(self.fade[0]).fade_out(self.fade[1]))
@@ -223,6 +220,7 @@ class Track:
 
     def __repr__(self):
         return f'<Track "{self.name}">'
+
     @property
     def length(self):
         return self.track.duration_seconds
@@ -232,13 +230,16 @@ class Track:
         self.old = True
         print('playing')
         for chunk in make_chunks(self.track[self.temp_start:self.temp_end], CHUNK):
+            if self.paused:
+                print('lock')
+                self.stream.stop_stream()  # Sometimes audio gets stuck in the pipes and pops when pausing/resuming
+                self.pause_lock.acquire()  # yay Locks; blocks until released in resume()
             if not self.playing:
                 print('stop')
                 break  # Kills thread
-            if self.paused:
-                print('lock')
-                self.pause_lock.acquire()  # yay Locks; blocks until released in resume()
             #print('round')
+            if self.stream.is_stopped():
+                self.stream.start_stream()
             self.stream.write((chunk + self.channel.gain + self.gain)._data)  # Live gain editing is possible because it's applied to each 50 ms chunk in real time
             self.play_time += CHUNK
             if self.queue_index != len(self.at_time_queue) and abs(self.at_time_queue[self.queue_index][0] - self.play_time) < CHUNK:
@@ -247,7 +248,9 @@ class Track:
                     f()
                 self.queue_index += 1
             # print(self.play_time)
-        self._renew()  # Thread automatically renewed because I don't want to do this manually
+        self._renew()  # Thread automatically renewed just in case because I don't want to do this manually
+        self.play_time = 0
+        self.stream.stop_stream()
 
     def _renew(self):
         if self.old:
@@ -272,7 +275,6 @@ class Track:
                     return
             q.append(data)
 
-
     def start_at(self, sec=None):
         self.old = True
         self._renew()
@@ -282,6 +284,7 @@ class Track:
         # Fetch the nearest queue item by distance to self.temp_start, find it's index, assign to queue_index
         if self.at_time_queue:
             self.queue_index = sorted([(abs(dat[0]-self.temp_start), i) for i,dat in enumerate(self.at_time_queue)], key=lambda i: i[0])[0][1]
+
     def end_at(self, sec=None):
         self._renew()
         if sec:
@@ -330,6 +333,7 @@ class Track:
         # track is Track
         # if you want delay then autofollow an empty track; crossfade 0 is acceptable if you prefer to use fade_out
         self.track = self.track.append(track.track, int(crossfade*1000))
+
 
 if __name__ == "__main__":
     chan = Channel(gain=-1.0)

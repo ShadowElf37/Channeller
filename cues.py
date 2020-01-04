@@ -12,8 +12,7 @@ class CueManager:
     def __init__(self, channel_manager=None):
         self.m = channel_manager
         self.cues: [Cue] = []
-        self.cue_i = self.i = -1
-        self.internal_i = 0
+        self.i = 0
         self.locals = {}
 
     def load_file(self, fp):
@@ -23,10 +22,10 @@ class CueManager:
                 c = d = s[0]
             else:
                 c, d = s
-            self.cue(c, d or c)
+            self.cue(c.strip(), (d or c).strip())
 
     def check_i(self, i):
-        return len(self.cues) > i > -2
+        return len(self.cues) > i > -1
 
     def cue(self, code, desc):
         self.cues.append(Cue(code, desc))

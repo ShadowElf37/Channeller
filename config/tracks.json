@@ -1,0 +1,13 @@
+{
+  "Soundtrack": [
+    {
+      "file": "Rap God.wav",
+      "name": "Rap God",
+      "gain": -7.0
+    },
+    {
+      "file": "From Peak to Peak.wav",
+      "name": "From Peak to Peak"
+    }
+  ]
+}
