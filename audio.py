@@ -6,8 +6,6 @@ from time import sleep
 from pydub import AudioSegment
 from pydub.utils import make_chunks
 from pydub.effects import compress_dynamic_range
-import multiprocessing as mp
-from multiprocessing.queues import Queue
 
 PA = pyaudio.PyAudio()
 CHUNK = 5  # 50ms chunks for processing – if it's too low then the overhead gets larger than the chunks are!
@@ -43,21 +41,7 @@ class Channel:
         self.comp_args = dict(threshold=-20.0, ratio=4.0, attack=5.0, release=50.0)
         self.color = color
         self.name = name
-
-        self.proc = mp.Process(target=self.loop)
-        self.pq = Queue()
-
-    def loop(self):
-        my_tracks = []
-        while True:
-            data = self.pq.get()
-            if type(data) is Track:
-                my_tracks.append(data)  # track
-                data.init()
-            elif type(data) is tuple:
-                my_tracks[data[0]]
-            else:
-                data()  # func
+        self.fading = False
 
     # Compression applies to ALL tracks queued in a channel - if you want only certain tracks compressed, a separate channel should be created for them
     def with_compression(self, threshold=-20.0, ratio=4.0, attack=5.0, release=50.0):
@@ -106,13 +90,16 @@ class Channel:
     def fade_gain(self, to, duration):
         Thread(target=self._fade_gain, args=(to, duration), daemon=True).start()
     def _fade_gain(self, to, duration, interval=10):
+        self.fading = True
         # interval is in ms
         duration *= 1000
-        delta = (to - self.gain)*(interval/duration)
+        delta = (to - self.gain) * (interval / duration)
         for _ in range(duration//interval):
             self.gain += delta
             sleep(interval/1000)
         self.gain = float(to)
+        sleep(0.05)
+        self.fading = False
 
     def queue(self, track, i=-1):
         # Pass parent
@@ -260,11 +247,10 @@ class Track:
 
         self.initially_mono = False if self.track.channels > 1 else True
         self.stream = PA.open(format=PA.get_format_from_width(self.track.sample_width),
-                                  channels=self.track.channels,
-                                  rate=self.track.frame_rate,
-                                  output=True)  # Audio out
-        #if not self.empty:
-        #    self.init()
+                              channels=self.track.channels,
+                              rate=self.track.frame_rate,
+                              output=True)  # Audio out
+        self._renew_thread()
 
         self.pause_lock = Lock()
         self.playing = False
@@ -276,22 +262,12 @@ class Track:
         self.queue_index = 0
         self.old = False  # False until played; False when renewed, to make sure you don't renew it multiple times
 
-        self.thread = Thread(target=self._play, daemon=True)
-
     def __repr__(self):
         return f'<Track "{self.name}">'
 
     @property
     def length(self):
         return self.track.duration_seconds
-
-    def init(self):
-        if self.stream is None:
-            self.stream = PA.open(format=PA.get_format_from_width(self.track.sample_width),
-                                  channels=self.track.channels,
-                                  rate=self.track.frame_rate,
-                                  output=True)  # Audio out
-
 
     def _play(self):
         self.playing = True
@@ -302,7 +278,7 @@ class Track:
                 print('lock')
                 self.stream.stop_stream()  # Sometimes audio gets stuck in the pipes and pops when pausing/resuming
                 self.pause_lock.acquire()  # yay Locks; blocks until released in resume()
-            if not self.playing or not self.stream.is_active():
+            if not self.playing:
                 print('stop')
                 break  # Kills thread
             #print('round')
@@ -327,6 +303,9 @@ class Track:
         self.play_time = 0
         self.stream.stop_stream()
 
+    def _renew_thread(self):
+        self.thread = Thread(target=self._play, daemon=True)
+
     def _renew(self):
         if self.old:
             self.old = False
@@ -335,7 +314,7 @@ class Track:
             self.temp_end = int(self.length*1000)
             print('RENEW')
             self.playing = False
-            self.thread = Thread(target=self._play, daemon=True)
+            self._renew_thread()
 
     def at_time(self, sec, *f):
         q = self.at_time_queue

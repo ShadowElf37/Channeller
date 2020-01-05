@@ -219,8 +219,11 @@ class ChannelView:
 
     def update_gains(self):
         try:
-            g = self.ch_gain_inc.get()
-            self.channel.gain = float(g)
+            if self.channel.fading:
+                self.ch_gain_inc.set(self.channel.gain)
+            else:
+                g = self.ch_gain_inc.get()
+                self.channel.gain = float(g)
         except (ValueError,):
             pass
         try:

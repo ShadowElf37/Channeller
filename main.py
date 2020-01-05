@@ -1,75 +1,83 @@
 import json
 import graphics, audio, views, cues, manager
-from os.path import exists, join
 import tkinter as tk
 from tkinter import filedialog as fd
+import sys
+import datetime as dt
+import os
 
 
 # Program
-app = graphics.App(700, 300, bg='#080808')
-app.resize(250, 50)
+newlogpath = os.path.join(os.getcwd(), 'logs', dt.datetime.now().strftime('%Y-%m-%d %H.%M.%S %p.log').replace('/', '-').replace(':', ';'))
+with open(newlogpath, 'w+', encoding='utf-8') as log:
+    sys.stdout = sys.stderr = log
 
-app.bind('F5', app.toggle_fullscreen)
-app.bind('Alt_L', app.alt_tab)
-app.bind('Win_L', app.alt_tab)
+    app = graphics.App(700, 300, bg='#080808')
+    app.resize(250, 50)
 
-m = manager.Manager(app)
+    app.bind('F5', app.toggle_fullscreen)
+    app.bind('Alt_L', app.alt_tab)
+    app.bind('Win_L', app.alt_tab)
 
-loading_text = tk.StringVar()
-loading_label = tk.Label(app.root, textvar=loading_text, fg='white', bg='#080808')
-loading_label.pack()
+    m = manager.Manager(app)
 
-m.load_channels(app.CFG + 'channels.json')
-m.load_tracks(app.CFG + 'tracks.json', loading_text)
+    loading_text = tk.StringVar()
+    loading_label = tk.Label(app.root, textvar=loading_text, fg='white', bg='#080808')
+    loading_label.pack()
 
-cm = cues.CueManager(m)
-cv = views.CueView(app, cm)
+    print('hey')
+    cdat = json.load(open(app.CFG + 'channels.json'))
+    tdat = json.load(open(app.CFG + 'tracks.json'))
+    print(cdat)
+    print(tdat)
+    m.load_channels(cdat)
+    print('ey')
+    m.load_tracks(tdat, loading_text)
+    print('hey')
 
-cm.locals = {
-    'cues': cm,
-    'manager': m,
-    'chan': m.chget,
-    'channel': m.chget,
-    'view': m.vget,
-    'stop_all': m.stop_all
-}
-cm.load_file(app.CFG + 'cues.cfg')
+    cm = cues.CueManager(m)
+    cv = views.CueView(app, cm)
 
-app.bind('MouseWheel', m.scroll)  # windows scroll
-app.bind("Button-4", m.scroll)  # linux scroll 1
-app.bind("Button-5", m.scroll)  # linux scroll 2
+    cm.locals = {
+        'cues': cm,
+        'manager': m,
+        'chan': m.chget,
+        'channel': m.chget,
+        'view': m.vget,
+        'stop_all': m.stop_all
+    }
+    cm.load_file(app.CFG + 'cues.cfg')
 
-app.bind('Button-1', m.scrub)  # timeline scrubbing
+    app.bind('MouseWheel', m.scroll)  # windows scroll
+    app.bind("Button-4", m.scroll)  # linux scroll 1
+    app.bind("Button-5", m.scroll)  # linux scroll 2
 
-app.bind('Motion', m.hover)  # timeline hovering
+    app.bind('Button-1', m.scrub)  # timeline scrubbing
 
-# SETTINGS
-settings = json.load(open('config/settings.json'))
+    app.bind('Motion', m.hover)  # timeline hovering
 
-m.SCROLL = settings['scroll_fraction']
-views.CueView.CUE_OFFSET = settings['cue_number_start']
-views.ChannelView.TRACK_OFFSET = audio.Channel.TRACK_OFFSET = settings['track_number_start']
+    # SETTINGS
+    settings = json.load(open('config/settings.json'))
 
-import keymap as km
-app.bind(km.map[settings['keybind_last_cue']], lambda e: cm.back())
-app.bind(km.map[settings['keybind_next_cue']], lambda e: cm.next())
-app.bind(km.map[settings['keybind_stop_all']], lambda e: m.stop_all())
-app.bind(km.map[settings['keybind_cue_go_next']], lambda e: cm.go())
+    m.SCROLL = settings['scroll_fraction']
+    views.CueView.CUE_OFFSET = settings['cue_number_start']
+    views.ChannelView.TRACK_OFFSET = audio.Channel.TRACK_OFFSET = settings['track_number_start']
 
-loading_label.destroy()
-del loading_label
-del loading_text
+    import keymap as km
+    app.bind(km.map[settings['keybind_last_cue']], lambda e: cm.back())
+    app.bind(km.map[settings['keybind_next_cue']], lambda e: cm.next())
+    app.bind(km.map[settings['keybind_stop_all']], lambda e: m.stop_all())
+    app.bind(km.map[settings['keybind_cue_go_next']], lambda e: cm.go())
 
-app.resize(700, 300)
-m.generate_views()
-app.run()
+    loading_label.destroy()
+    del loading_label
+    del loading_text
 
-# SUBPROC FOR EACH CHANNEL, THREAD SONGS INSIDE OR SOMETHING todo
+    app.resize(700, 340)
+    m.generate_views()
+    app.run()
 
-# EASIER WAY TO ADD TRACKS
-# TRACK/CHANNEL CFG WRITE TOOL todo
+    # EASIER WAY TO ADD TRACKS
+    # TRACK/CHANNEL CFG WRITE TOOL todo
 
-# CANVAS TEXT FOR PREV AND NEXT
-
-# MARKERS
-# REMOVE COMP AND GAIN INDICATORS
+    # CANVAS TEXT FOR PREV AND NEXT todo

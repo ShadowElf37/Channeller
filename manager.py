@@ -110,25 +110,25 @@ class Manager:
         canvas: Canvas = e.widget
         v = None
         for view in self.views.values():
+            view.channel_view.canvas.delete(self.timebar_hover_text)  # now it won't get stuck when the window is calculating stuff
             if view.channel_view.canvas == e.widget:
                 v: views.ChannelView = view
                 break
 
-        if v is None: return
-        canvas.delete(self.timebar_hover_text)
+        if v is None:
+            return
 
         scrubber_box = v.timebar.coords
         if graphics.in_box(x, y, *scrubber_box):
             pct = (x - scrubber_box[0]) / (scrubber_box[2] - scrubber_box[0])
             self.timebar_hover_text = canvas.create_text(x, scrubber_box[1]-self.app.h/100*2, text=views.hms(pct* v.current.length), fill='#660', font="LucidaConsole %d" % (6*self.app.h/self.app.H))
 
-    def load_channels(self, file):
-        for channel in json.load(open(file)):
+    def load_channels(self, data):
+        for channel in data:
             self.create_channel(**channel)
 
-    def load_tracks(self, file, loading_notifier=NonceVar()):
+    def load_tracks(self, data, loading_notifier=NonceVar()):
         # loading_notifier is a StringVar, usually, for a loading screen, because loading tracks fresh can take a sec; NonceVar mimics StringVar interface
-        data = json.load(open(file))
         cache = Path(self.app.DIR, 'yt_cache')
         urls = json.load(open(cache + 'urls.json'))
 
@@ -136,8 +136,8 @@ class Manager:
             if listing := data.get(channel.name):
                 l = len(listing)
                 track_list = []
-                for i,track in enumerate(listing):
-                    YT = 'url' in track
+                for i, track in enumerate(listing):
+                    YT = track.get('url')
                     cache_fp = None
                     i += 1
 
@@ -182,8 +182,11 @@ class Manager:
                             print('DOWNLOADED:', cache_fp)
                             track['file'] = cache_fp
 
-                        if 'name' not in track:  # Give it a name
+                        if not track.get('name'):  # Give it a name
                             track['name'] = name + ' (YT)'
+
+                    # not a Track() arg!
+                    if 'url' in track:
                         del track['url']
 
                     # Handles general files, as well as the downloaded YouTube audio

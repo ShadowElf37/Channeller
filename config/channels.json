@@ -1,23 +1,23 @@
 [
-  {
-    "name": "SFX 1",
-    "color": "#f00",
-    "gain": 0.0,
-    "mono": false,
-    "slot": 0
-  },
-  {
-    "name": "SFX 2",
-    "color": "#f00",
-    "gain": 0.0,
-    "mono": false,
-    "slot": 1
-  },
-  {
-    "name": "Soundtrack",
-    "color": "#f60",
-    "gain": -10.0,
-    "mono": false,
-    "slot": 3
-  }
+    {
+        "name": "SFX 1",
+        "color": "#f00",
+        "gain": 0.0,
+        "mono": false,
+        "slot": 0
+    },
+    {
+        "name": "SFX 2",
+        "color": "#f00",
+        "gain": 0.0,
+        "mono": false,
+        "slot": 1
+    },
+    {
+        "name": "Soundtrack",
+        "color": "#f60",
+        "gain": -5.0,
+        "mono": false,
+        "slot": 3
+    }
 ]

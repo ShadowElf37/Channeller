@@ -4,6 +4,7 @@ import os
 from extras import Path
 from time import sleep
 from copy import deepcopy
+import traceback
 
 def in_box(x, y, x1, y1, x2, y2):
     return x2 >= x >= x1 and y2 >= y >= y1
@@ -95,6 +96,8 @@ class Label(Element):
         return int(self.app.FONTSCALE * self.fontscale * self.app.w / self.app.W)
 
     def draw(self):
+        if len(self.read()) == 0:
+            self.label.place_forget()
         if super().draw():
             for elem in self.tk_elements:
                 elem.configure(font=(self.app.FONT, self.fontsize))
@@ -114,6 +117,8 @@ class RightAlignLabel(Label):
         super().__init__(*args, **kwargs)
         self.X = kwargs['x']
     def draw(self):
+        if len(self.read()) == 0:
+            self.label.place_forget()
         # Some manual scaling was required to keep them aligned; the longer the text, the further off to the left it was
         self.x = self.X - (((self.fontsize*0.8)*(len(self.read())+2)) / self.app.w)
         super().draw()
@@ -313,8 +318,8 @@ class App:
         self.root.quit()
 
     def run(self):
-        try:
-            while self.running:
+        while self.running:
+            try:
                 self.update_size()
                 if self.check_resize():
                     self.on_resize()
@@ -324,6 +329,8 @@ class App:
                 self.ow = self.w
                 self.oh = self.h
                 sleep(1/self.framerate)
-        except (KeyboardInterrupt, SystemExit, tk.TclError) as e:
-            print('Application destroyed – %s' % e)
-            self.quit()
+            except (KeyboardInterrupt, SystemExit, tk.TclError) as e:
+                print('Application destroyed – %s' % e)
+                self.quit()
+            except:
+                traceback.print_exc()
