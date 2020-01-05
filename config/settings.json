@@ -1,3 +1,11 @@
 {
-  "scroll_fraction": 0.1
+  "scroll_fraction": 0.1,
+
+  "cue_number_start": 1,
+  "track_number_start": 1,
+
+  "keybind_next_cue": "right",
+  "keybind_last_cue": "left",
+  "keybind_stop_all": "s",
+  "keybind_cue_go_next": "space"
 }

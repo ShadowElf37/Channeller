@@ -3,11 +3,27 @@
     {
       "file": "Rap God.wav",
       "name": "Rap God",
-      "gain": -7.0
+      "gain": 0
     },
     {
       "file": "From Peak to Peak.wav",
       "name": "From Peak to Peak"
+    },
+    {
+      "file": "Like Toy Soldiers.mp3"
+    },
+    {
+      "url": "https://youtube.com/watch?v=HIqQ0PfuPo8",
+      "name": "Stan by Eminem"
+    },
+    {
+      "url": "https://music.youtube.com/watch?v=vQ0u09mFodw&list=RDAMVMoRAIA_F_sZs",
+      "timed_commands": [
+        [1.0, "print('hello world!')"]
+      ],
+      "autofollow": [
+        "Stan by Eminem"
+      ]
     }
   ]
 }

@@ -21,6 +21,8 @@ class ChannelView:
     BUTTONBG = '#aaa'
     SPACING = 0.205
 
+    TRACK_OFFSET = 0
+
     @property
     def stereo(self):
         return 'STEREO' if self.channel._channel_count > 1 else 'MONO'
@@ -82,9 +84,9 @@ class ChannelView:
         # PRESETS
         #self.compression_label = graphics.Label(app, '', y=0.01 + y_off, fg=self.FG_1, bg=self.BG)
         #self.compression_label.define_pre_label('COMP ')
-        #self.gain_label = graphics.Label(app, '', y=0.06 + y_off, fg=self.FG_1, bg=self.BG)
-        #self.gain_label.define_pre_label('GAIN ')
-        self.mono_label = graphics.Label(app, '', y=0.11 + y_off, fg=self.FG_1, bg=self.BG)
+        self.mono_label = graphics.Label(app, '', y=0.01 + y_off, fg=self.FG_1, bg=self.BG, fontscale=1.0)
+        self.track_count_label = graphics.Label(app, '', y=0.06 + y_off, fg=self.FG_1, bg=self.BG)
+
 
         # TRACK NAME
         self.track_name_label = graphics.Label(app, '', x=0.1, y=0.002 + y_off, fontscale=1.3, fg=self.FG_2, bg=self.BG)
@@ -153,7 +155,7 @@ class ChannelView:
 
         self.parts = (
             self.channel_view, self.presets, self.buttons,
-            self.mono_label,  # Removed gain and comp labels
+            self.mono_label, self.track_count_label, # Removed gain and comp labels
             self.track_name_label, self.elapsed_label, self.total_label,
             self.next_label, self.prev_label, self.channel_label, self.paused_label, # no timebar
             self.pause_button, self.next_button, self.last_button, self.prev_button, self.first_button,
@@ -195,8 +197,9 @@ class ChannelView:
         #self.compression_label.write(self.compression)
         #self.gain_label.write(self.gain)
         self.mono_label.write(self.stereo)
+        self.track_count_label.write('%s TRACKS' % len(self.channel._queue))
 
-        self.track_name_label.write('%s - %s' % (self.current.name, self.channel.index))
+        self.track_name_label.write('%s - %s' % (self.current.name, self.channel.index+self.TRACK_OFFSET))
         self.prev_label.write(self.prev)
         self.next_label.write(self.next)
 
@@ -244,7 +247,7 @@ class ChannelView:
         self.update_labels()
 
 
-class CueViewer:
+class CueView:
     FG_1 = '#eee'
     FG_2 = '#0c0'
     FG_3 = '#dc0'
@@ -254,6 +257,8 @@ class CueViewer:
     ABBG_1 = '#f88'
     BBG_2 = '#048'
     ABBG_2 = '#688'
+
+    CUE_OFFSET = 1
 
     def __init__(self, app, cue_manager):
         self.cm: cues.CueManager = cue_manager
@@ -285,5 +290,5 @@ class CueViewer:
         i = self.cm.i
         self.prev_label.write(self.cm.get(i - 1).desc[:25])
         self.next_label.write(self.cm.get(i + 1).desc[:25])
-        self.current_label.write('Cue {} - '.format(i+1) + self.cm.get(i).desc[:36])
+        self.current_label.write('Cue {} - '.format(i+self.CUE_OFFSET) + self.cm.get(i).desc[:36])
         self.next_cmd.write(self.cm.get(i).code)

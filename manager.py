@@ -1,0 +1,230 @@
+import audio, graphics, views
+import json
+import pafy
+import os
+from tkinter import Canvas
+from extras import *
+from urllib.parse import parse_qs, urlparse
+
+
+class Manager:
+    def __init__(self, app):
+        self.channels: {str: audio.Channel} = {}
+        self.views: {str: views.ChannelView} = {}
+        self.track_dict: {str: audio.Track} = {}
+        self._slots = {}
+        self.i = 0
+        self.app = app
+        self.total_scroll = 0
+        self.app.on_resize = self.recalculate_scroll_on_resize
+        self.SCROLL = 0.1
+        self.timebar_hover_text = None
+
+    @property
+    def SCROLLSHIFT(self):
+        return int(self.app.h*self.SCROLL)
+
+    def recalculate_scroll_on_resize(self):
+        # Since the scroll increment changes dynamically to 1/10 of the window height, the scroll y needs to be recalculated on window resize
+        for view in self.views.values():
+            view.reset_shifty()
+            view.shifty(self.total_scroll * self.SCROLLSHIFT)
+
+    def chget(self, name):
+        return self.channels.get(name)
+    def vget(self, name):
+        return self.views.get(name)
+    def tget(self, name):
+        return self.track_dict.get(name)
+
+    def stop_all(self):
+        for c in self.channels.values():
+            c.stop_all()
+
+    def create_channel(self, name, color, gain, mono=False, slot=None):
+        self.channels[name] = c = audio.Channel(name, color, gain, mono=mono)
+        self._slots[name] = slot or self.i
+        if slot is None:
+            self.i += 1
+        return c
+
+    def generate_views(self):
+        print(self.channels)
+        for name, c in self.channels.items():
+            self.views[name] = v = views.ChannelView(self.app, c, self._slots[name])
+            self.app.track(v)
+
+    def scroll(self, e):  # Allows scrollwheeling
+        if e.num == 4 or e.delta == 120:
+            d = 1  # Up
+        elif e.num == 5 or e.delta == -120:
+            d = -1  # Down
+        else:
+            return
+
+        # max in SCROLL SHIFTS, i.e. tenths
+        max_up = 8
+        max_down = -max(self._slots.values())*2
+        if (self.total_scroll == max_up and d == 1) or (self.total_scroll == max_down and d == -1):
+            return
+
+        self.total_scroll += d
+        for view in self.views.values():
+            view.shifty(d*self.SCROLLSHIFT)
+
+    def scrub(self, e):  # Allows timeline scrubbing
+        x = e.x
+        y = e.y
+        v = None
+        c = None
+        for view in self.views.values():
+            if view.channel_view.canvas == e.widget:
+                v = view
+                c: audio.Channel = v.channel
+                break
+        if v is None:
+            return
+
+        scrubber_box = v.timebar.coords
+        if graphics.in_box(x, y, *scrubber_box):
+            x1 = scrubber_box[0]
+            x2 = scrubber_box[2]
+            frac = (x - x1) / (x2 - x1)
+            time = c.current.length * frac
+            if c.current.paused:
+                c.current.stop()
+                c.current.start_at(time)
+                c.current.pause()
+                c.current.play()
+            elif c.current.playing:
+                c.current.stop()
+                c.current.start_at(time)
+                c.current.play()
+            else:
+                c.current.stop()
+                c.current.start_at(time)
+
+    def hover(self, e):  # Detects location over timeline and spawns text to show you where your cursor is in the song
+        x = e.x
+        y = e.y
+        canvas: Canvas = e.widget
+        v = None
+        for view in self.views.values():
+            if view.channel_view.canvas == e.widget:
+                v: views.ChannelView = view
+                break
+
+        if v is None: return
+        canvas.delete(self.timebar_hover_text)
+
+        scrubber_box = v.timebar.coords
+        if graphics.in_box(x, y, *scrubber_box):
+            pct = (x - scrubber_box[0]) / (scrubber_box[2] - scrubber_box[0])
+            self.timebar_hover_text = canvas.create_text(x, scrubber_box[1]-self.app.h/100*2, text=views.hms(pct* v.current.length), fill='#660', font="LucidaConsole %d" % (6*self.app.h/self.app.H))
+
+    def load_channels(self, file):
+        for channel in json.load(open(file)):
+            self.create_channel(**channel)
+
+    def load_tracks(self, file, loading_notifier=NonceVar()):
+        # loading_notifier is a StringVar, usually, for a loading screen, because loading tracks fresh can take a sec; NonceVar mimics StringVar interface
+        data = json.load(open(file))
+        cache = Path(self.app.DIR, 'yt_cache')
+        urls = json.load(open(cache + 'urls.json'))
+
+        for channel in self.channels.values():
+            if listing := data.get(channel.name):
+                l = len(listing)
+                track_list = []
+                for i,track in enumerate(listing):
+                    YT = 'url' in track
+                    cache_fp = None
+                    i += 1
+
+                    if YT:  # YOUTUBE DOWNLOADS WORK AHAHAHAHAHA IM SO HAPPY
+                        url = track['url'].replace('music.', '')
+                        video_id = parse_qs(urlparse(url).query)['v'][0]
+
+                        url_short = url  # Shortened for visual appeal in the loading screen
+                        if len(url) > 41:
+                            url_short = url[:19] + '...' + url[-19:]
+
+                        loading_notifier.set(f'Resolving \n {url_short} \n ({i}/{l})')
+                        self.app.root.update()
+
+                        if video_id in urls:  # We keep urls stored with their video titles in case we have them; cuts the 2 seconds required for pafy.new()
+                            name = urls[video_id]
+                        else:  # If it's not listed then that's very suspicious, probably not cached, so we resolve it ourselves
+                            try:
+                                vid = pafy.new(video_id)
+                            except:
+                                continue
+                            name = vid.title
+                            urls[video_id] = name
+
+                        wave_path = Path(self.app.DIR, 'wave_cache', name+'.wav').path
+
+                        if os.path.exists(wave_path):
+                            # Now actually check if we have it cached.
+                            # If you clear urls.json but still have the wav hanging around this will save you,
+                            # otherwise it's a redundant check
+                            track['file'] = wave_path
+
+                        else:  # But if not cached, gotta download!
+                            loading_notifier.set(f'Downloading "{name}" from YouTube ({i}/{l})')
+                            self.app.root.update()
+
+                            aud = vid.getbestaudio()  # mod this
+
+                            # download it to the yt_cache
+                            cache_fp = cache + (vid.title + '.' + aud.extension)
+                            aud.download(cache_fp)
+                            print('DOWNLOADED:', cache_fp)
+                            track['file'] = cache_fp
+
+                        if 'name' not in track:  # Give it a name
+                            track['name'] = name + ' (YT)'
+                        del track['url']
+
+                    # Handles general files, as well as the downloaded YouTube audio
+                    name = track.get('name', track['file'])
+                    loading_notifier.set(f'Loading {name} ({i}/{l})')
+                    self.app.root.update()
+
+                    # Generate track and queue it
+                    self.track_dict[name] = t = audio.Track(**track)
+                    track_list.append(t)
+
+                    # yt_cache is EVANESCENT
+                    if cache_fp:
+                        os.remove(cache_fp)
+
+                # Fix up autofollows and at_times
+                loading_notifier.set(f'Rendering autofollows...')
+                self.app.root.update()
+
+                tracks_to_remove = []
+                for track in track_list:
+                    for af_name in track.auto_follow_mods:
+                        # "track name"
+                        af_track = self.track_dict[af_name]
+                        track.autofollow(af_track)
+                        tracks_to_remove.append(af_track)
+                        # Remove auto'd tracks from the queue since they attach to the parent
+
+                    for at_data in track.at_time_mods:
+                        # [5.0, "print('hello')"]
+                        # we'll exec
+                        t, f = at_data
+                        track.at_time(t, lambda: exec(f))
+
+                # REMOVE
+                for track in tracks_to_remove:
+                    track_list.remove(track)
+
+                # Finally queue the fully resolved tracks
+                for t in track_list:
+                    channel.queue(t)
+
+        json.dump(urls, open(cache + 'urls.json', 'w'), indent=4)
+

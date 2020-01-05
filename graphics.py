@@ -1,11 +1,12 @@
 import tkinter as tk
 from PIL import Image, ImageTk, ImageTransform, ImageColor
 import os
+from extras import Path
 from time import sleep
 from copy import deepcopy
 
 def in_box(x, y, x1, y1, x2, y2):
-    return x2 > x > x1 and y2 > y > y1
+    return x2 >= x >= x1 and y2 >= y >= y1
 
 
 class Element:
@@ -237,9 +238,9 @@ class App:
         self.DIR = os.getcwd()
         self.FONT = 'Lucida Console'
         self.FONTSCALE = 9
-        self.ICON = self.DIR + '/images/favicon.ico'
-        self.CFG = self.DIR + '/config/'
-        self.IMG = self.DIR + '/images/'
+        self.ICON = Path(self.DIR, 'images', 'favicon.ico')
+        self.CFG = Path(self.DIR, 'config')
+        self.IMG = Path(self.DIR, 'images')
         self.W = self.w = self.ow = width  # w and h are current width and height; W and H are original
         self.H = self.h = self.oh = height
         self.framerate = 60
@@ -268,9 +269,12 @@ class App:
     def bind_all(self, key, f):
         self.root.bind_all('<%s>'%key, f)
 
+    def resize(self, w, h):
+        self.root.geometry(f'{w}x{h}')
+        self.update_size()
+
     def check_resize(self):
         return self.ow != self.w or self.oh != self.h
-
     def update_size(self):
         self.w = self.root.winfo_width()
         self.h = self.root.winfo_height()

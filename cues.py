@@ -48,8 +48,8 @@ class CueManager:
         self.get(self.i).execute(**self.locals)
 
     def go(self):
-        if self.next():
-            self.do()
+        self.do()
+        self.next()
 
     def get(self, i) -> Cue:
         if self.check_i(i) and i != -1:

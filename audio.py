@@ -1,16 +1,17 @@
 import pyaudio
-from suppressor import IndustrialGradeWarningSuppressor
+import os.path, os
+import ntpath
 from threading import Thread, Lock
 from time import sleep
-
-with IndustrialGradeWarningSuppressor():
-    # Dumb bitch whines a lot
-    from pydub import AudioSegment
-    from pydub.utils import make_chunks
-    from pydub.effects import compress_dynamic_range
+from pydub import AudioSegment
+from pydub.utils import make_chunks
+from pydub.effects import compress_dynamic_range
+import multiprocessing as mp
+from multiprocessing.queues import Queue
 
 PA = pyaudio.PyAudio()
 CHUNK = 5  # 50ms chunks for processing – if it's too low then the overhead gets larger than the chunks are!
+DIR = os.getcwd()
 
 # Missing pydub feature
 def detect_leading_silence(sound, silence_threshold=-50.0, chunk_size=10):
@@ -30,6 +31,8 @@ def detect_leading_silence(sound, silence_threshold=-50.0, chunk_size=10):
 
 
 class Channel:
+    TRACK_OFFSET = 0
+
     def __init__(self, name='Unnamed Channel', color='#FFF', gain=0.0, mono=False):
         self.gain = gain
         self.current: Track = Track(None)
@@ -40,6 +43,21 @@ class Channel:
         self.comp_args = dict(threshold=-20.0, ratio=4.0, attack=5.0, release=50.0)
         self.color = color
         self.name = name
+
+        self.proc = mp.Process(target=self.loop)
+        self.pq = Queue()
+
+    def loop(self):
+        my_tracks = []
+        while True:
+            data = self.pq.get()
+            if type(data) is Track:
+                my_tracks.append(data)  # track
+                data.init()
+            elif type(data) is tuple:
+                my_tracks[data[0]]
+            else:
+                data()  # func
 
     # Compression applies to ALL tracks queued in a channel - if you want only certain tracks compressed, a separate channel should be created for them
     def with_compression(self, threshold=-20.0, ratio=4.0, attack=5.0, release=50.0):
@@ -106,11 +124,14 @@ class Channel:
             track.track = tracks[0].overlay(tracks[1]).set_frame_rate(track.track.frame_rate * 2)  # Number of frames doubles in the unification, and that has some side effects
         else:
             track.track = track.track.set_channels(self._channel_count)
-        print('comp')
+
+        # COMPRESSION IS TOO EXPENSIVE
+        #print('comp')
         # Compression
-        if self.compression:
-            track.track = compress_dynamic_range(track.track, **self.comp_args)
-        print('excomp')
+        #if self.compression:
+        #    track.track = compress_dynamic_range(track.track, **self.comp_args)
+        #print('excomp')
+
         # Queue
         if i == -1:
             self._queue.append(track)
@@ -119,7 +140,11 @@ class Channel:
 
         self.update()
 
-    def goto(self, i):
+    def goto(self, i, offset=False):
+        if i is None:
+            return True
+        if offset:
+            i -= self.TRACK_OFFSET
         if len(self._queue) > i > -1:
             self.index = i
             self.update()
@@ -138,17 +163,23 @@ class Channel:
     def last(self):
         return self.goto(len(self._queue)-1)
 
-    def play(self):
+    def play(self, i=None):
+        self.goto(i, True)
         self.current.play()
-    def stop(self):
+    def stop(self, i=None):
+        self.goto(i, True)
         self.current.stop()
+    def pause(self, i=None):
+        self.goto(i, True)
+        self.current.pause()
+    def resume(self, i=None):
+        self.goto(i, True)
+        self.current.resume()
+
     def stop_all(self):
         for track in self._queue:
             track.stop()
-    def pause(self):
-        self.current.pause()
-    def resume(self):
-        self.current.resume()
+
     def murder(self, i=None):  # Not sure why you'd want to call this
         self._queue[i or self.index]._die()
     def wait(self):
@@ -167,7 +198,10 @@ class Channel:
 
 
 class Track:
-    def __init__(self, file, name='', start_sec=0.0, end_sec=None, fade_in=0.0, fade_out=0.0, delay_in=0.0, delay_out=0.0, gain=0.0, repeat=0, repeat_transition_duration=0.1, repeat_transition_is_xf=False, cut_leading_silence=False):
+    def __init__(self, file, name='',
+                 start_sec=0.0, end_sec=None, fade_in=0.0, fade_out=0.0, delay_in=0.0, delay_out=0.0, gain=0.0, repeat=0,
+                 repeat_transition_duration=0.1, repeat_transition_is_xf=False, cut_leading_silence=False,
+                 autofollow=(), timed_commands=()):
         # If repeat_transition_xf is False then a delay will be used with repeat_transition_duration; if True, it will crossfade
         # Setting fade_in and fade_out to 0.0 will crash
         self.f = file
@@ -176,36 +210,62 @@ class Track:
         self.end = int(end_sec * 1000) if end_sec else None
         self.fade = (int(fade_in*1000) or 1, int(fade_out*1000) or 1)  # Fades of 0.0 crash for some reason, so 1 ms will be preferred as a safety measure
         self.delay = (int(delay_in * 1000), int(delay_out * 1000))
-        self.gain = gain  # applied in real time
+        self.gain = float(gain)  # applied in real time
         self.channel = None
         self.empty = file is None
         self.repeats = repeat
 
-        if not self.empty: # File is passed
-            with IndustrialGradeWarningSuppressor(): # Shut up no one likes you
+        # Mods; handled by a manager
+        # BOTH SHOULD BE LISTS
+        self.auto_follow_mods = autofollow
+        self.at_time_mods = timed_commands
+
+        if not self.empty:  # File is passed
+            fname, ext = os.path.splitext(ntpath.basename(file))  # ntpath.basename splits off the file name from a path
+            loaded = None
+            wc = os.path.join(DIR, 'wave_cache')
+
+            # We need to check if the file is a wav or not because loading wav is fast af
+            if ext != '.wav':
+                for f in os.listdir(wc):
+                    if os.path.splitext(f)[0] == fname:
+                        # Not a wav but we found a cached wav copy
+                        print('WAV CACHE:', os.path.join(wc, f))
+                        loaded = AudioSegment.from_file(os.path.join(wc, f))
+                        break
+                if loaded is None:
+                    # We didn't find a cached wav so we need to load it; cache a wav copy
+                    loaded = AudioSegment.from_file(file)
+                    print('GENERATING WAV:', os.path.join(wc, fname+'.wav'))
+                    loaded.export(os.path.join(wc, fname+'.wav'), format='wav')
+            else:
+                # They gave us a wav thank God
+                print('WAV RECEIVED:', file)
                 loaded = AudioSegment.from_file(file)
-                # delay in, start time, end of leading silence, end time, fade in, fade out
-                self.track = AudioSegment.silent(self.delay[0]) +\
-                             (loaded[self.start + (detect_leading_silence(loaded) if cut_leading_silence else 0):self.end].fade_in(self.fade[0]).fade_out(self.fade[1]))
-                # repeats; track + delay + track + ...
-                if repeat_transition_is_xf: # delay
-                    for _ in range(repeat):
-                        self.track += AudioSegment.silent(int(repeat_transition_duration*1000)) + self.track
-                else: # xf
-                    for _ in range(repeat):
-                        self.track = self.track.append(self.track, crossfade=repeat_transition_duration)
-                # delay out
-                self.track += AudioSegment.silent(self.delay[1])
+
+            # delay in, start time, end of leading silence, end time, fade in, fade out
+            self.track = AudioSegment.silent(self.delay[0]) +\
+                         (loaded[self.start + (detect_leading_silence(loaded) if cut_leading_silence else 0):self.end].fade_in(self.fade[0]).fade_out(self.fade[1]))
+            # repeats; track + delay + track + ...
+            if repeat_transition_is_xf: # delay
+                for _ in range(repeat):
+                    self.track += AudioSegment.silent(int(repeat_transition_duration*1000)) + self.track
+            else: # xf
+                for _ in range(repeat):
+                    self.track = self.track.append(self.track, crossfade=repeat_transition_duration)
+            # delay out
+            self.track += AudioSegment.silent(self.delay[1])
         else: # An empty track is desired for whatever reason; use delay in and delay out
             self.track = AudioSegment.silent(self.delay[0]) + AudioSegment.silent(self.delay[1])
 
         self.initially_mono = False if self.track.channels > 1 else True
-
-        if not self.empty:
-            self.stream = PA.open(format=PA.get_format_from_width(self.track.sample_width),
+        self.stream = PA.open(format=PA.get_format_from_width(self.track.sample_width),
                                   channels=self.track.channels,
                                   rate=self.track.frame_rate,
                                   output=True)  # Audio out
+        #if not self.empty:
+        #    self.init()
+
         self.pause_lock = Lock()
         self.playing = False
         self.paused = False
@@ -225,6 +285,14 @@ class Track:
     def length(self):
         return self.track.duration_seconds
 
+    def init(self):
+        if self.stream is None:
+            self.stream = PA.open(format=PA.get_format_from_width(self.track.sample_width),
+                                  channels=self.track.channels,
+                                  rate=self.track.frame_rate,
+                                  output=True)  # Audio out
+
+
     def _play(self):
         self.playing = True
         self.old = True
@@ -234,18 +302,25 @@ class Track:
                 print('lock')
                 self.stream.stop_stream()  # Sometimes audio gets stuck in the pipes and pops when pausing/resuming
                 self.pause_lock.acquire()  # yay Locks; blocks until released in resume()
-            if not self.playing:
+            if not self.playing or not self.stream.is_active():
                 print('stop')
                 break  # Kills thread
             #print('round')
             if self.stream.is_stopped():
                 self.stream.start_stream()
-            self.stream.write((chunk + self.channel.gain + self.gain)._data)  # Live gain editing is possible because it's applied to each 50 ms chunk in real time
+            try:
+                self.stream.write((chunk + self.channel.gain + self.gain)._data)  # Live gain editing is possible because it's applied to each 50 ms chunk in real time
+            except OSError:
+                # Couldn't write to host device; maybe it unplugged?
+                pass
             self.play_time += CHUNK
             if self.queue_index != len(self.at_time_queue) and abs(self.at_time_queue[self.queue_index][0] - self.play_time) < CHUNK:
                 # If within a CHUNK of the execution time
                 for f in self.at_time_queue[self.queue_index][1]:
-                    f()
+                    try:
+                        f()
+                    except Exception as e:
+                        print('Timed command failed:', e)
                 self.queue_index += 1
             # print(self.play_time)
         self._renew()  # Thread automatically renewed just in case because I don't want to do this manually

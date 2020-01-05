@@ -16,7 +16,7 @@
   {
     "name": "Soundtrack",
     "color": "#f60",
-    "gain": 0.0,
+    "gain": -10.0,
     "mono": false,
     "slot": 3
   }
