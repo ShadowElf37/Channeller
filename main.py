@@ -18,6 +18,7 @@ lftrack = data['last_track_file'] or cfolder + 'tracks.json'
 lfcue = data['last_cue_file'] or cfolder + 'cues.cfg'
 
 def load_cfg(key, sv=None):
+    global data
     path = fd.askopenfilename(initialdir='.', filetypes=(
                                         ("Config/JSON files", "*.json;*.cfg"),
                                         ("All files", "*.*")
@@ -49,16 +50,14 @@ cue_label.grid(row=3, column=1)
 cue_selector.grid(row=3, column=3)
 
 ready = False
-def r():
+def r(*args):
     global ready
     ready = True
     root.destroy()
 
 start = tk.Button(root, text='Enter', command=r)
 start.grid(row=5, column=2)
-
-conf.seek(0)
-json.dump(data, conf, indent=4)
+root.bind('<Return>', r)
 
 try:
     root.mainloop()
@@ -68,8 +67,17 @@ except tk.TclError:
 if not ready:
     exit()
 
+print('storing config locations')
+json.dump(data, open(cfolder + 'stored.json', 'w'), indent=4)
+print('done')
+
+fchan = data['last_channel_file'] or cfolder + 'channels.json'
+ftrack = data['last_track_file'] or cfolder + 'tracks.json'
+fcue = data['last_cue_file'] or cfolder + 'cues.cfg'
+
 # Program
 newlogpath = os.path.join(os.getcwd(), 'logs', dt.datetime.now().strftime('%Y-%m-%d %H.%M.%S %p.log').replace('/', '-').replace(':', ';'))
+
 with open(newlogpath, 'w+', encoding='utf-8') as log:
     sys.stdout = sys.stderr = log
 
@@ -86,15 +94,14 @@ with open(newlogpath, 'w+', encoding='utf-8') as log:
     loading_label = tk.Label(app.root, textvar=loading_text, fg='white', bg='#080808')
     loading_label.pack()
 
-    print('hey')
-    cdat = json.load(open(app.CFG + 'channels.json'))
-    tdat = json.load(open(app.CFG + 'tracks.json'))
-    print(cdat)
-    print(tdat)
+    print('we go')
+    cdat = json.load(open(fchan))
+    tdat = json.load(open(ftrack))
+    print('loading channels')
     m.load_channels(cdat)
-    print('ey')
+    print('loading tracks')
     m.load_tracks(tdat, loading_text)
-    print('hey')
+    print('loaded successfully')
 
     cm = cues.CueManager(m)
     cv = views.CueView(app, cm)
@@ -107,7 +114,7 @@ with open(newlogpath, 'w+', encoding='utf-8') as log:
         'view': m.vget,
         'stop_all': m.stop_all
     }
-    cm.load_file(app.CFG + 'cues.cfg')
+    cm.load_file(fcue)
 
     app.bind('MouseWheel', m.scroll)  # windows scroll
     app.bind("Button-4", m.scroll)  # linux scroll 1
@@ -138,7 +145,8 @@ with open(newlogpath, 'w+', encoding='utf-8') as log:
     m.generate_views()
     app.run()
 
-    # EASIER WAY TO ADD TRACKS
-    # TRACK/CHANNEL CFG WRITE TOOL todo
 
-    # CANVAS TEXT FOR PREV AND NEXT todo
+# EASIER WAY TO ADD TRACKS
+# TRACK/CHANNEL CFG WRITE TOOL todo
+
+# CANVAS TEXT FOR PREV AND NEXT todo
