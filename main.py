@@ -5,7 +5,68 @@ from tkinter import filedialog as fd
 import sys
 import datetime as dt
 import os
+from extras import Path
+import ntpath
 
+# FILE SELECTION
+cfolder = Path(os.getcwd(), 'config')
+conf = open(cfolder + 'stored.json', 'r+')
+data = json.load(conf)
+
+lfchan = data['last_channel_file'] or cfolder + 'channels.json'
+lftrack = data['last_track_file'] or cfolder + 'tracks.json'
+lfcue = data['last_cue_file'] or cfolder + 'cues.cfg'
+
+def load_cfg(key, sv=None):
+    path = fd.askopenfilename(initialdir='.', filetypes=(
+                                        ("Config/JSON files", "*.json;*.cfg"),
+                                        ("All files", "*.*")
+                                            ))
+    if sv:
+        sv.set(ntpath.basename(path))
+    data[key] = path
+
+root = tk.Tk()
+root.title('Load Files')
+
+channel_label = tk.Label(root, text='Channel file:', anchor='e')
+ch_sv = tk.StringVar(value=ntpath.basename(lfchan))
+channel_selector = tk.Button(root, textvar=ch_sv, command=lambda: load_cfg('last_channel_file', ch_sv), anchor='w')
+
+track_label = tk.Label(root, text='Track file:', anchor='e')
+t_sv = tk.StringVar(value=ntpath.basename(lftrack))
+track_selector = tk.Button(root, textvar=t_sv, command=lambda: load_cfg('last_track_file', t_sv), anchor='w')
+
+cue_label = tk.Label(root, text='Cue file:', anchor='e')
+c_sv = tk.StringVar(value=ntpath.basename(lfcue))
+cue_selector = tk.Button(root, textvar=c_sv, command=lambda: load_cfg('last_cue_file', c_sv), anchor='w')
+
+channel_label.grid(row=1, column=1)
+channel_selector.grid(row=1, column=3)
+track_label.grid(row=2, column=1)
+track_selector.grid(row=2, column=3)
+cue_label.grid(row=3, column=1)
+cue_selector.grid(row=3, column=3)
+
+ready = False
+def r():
+    global ready
+    ready = True
+    root.destroy()
+
+start = tk.Button(root, text='Enter', command=r)
+start.grid(row=5, column=2)
+
+conf.seek(0)
+json.dump(data, conf, indent=4)
+
+try:
+    root.mainloop()
+except tk.TclError:
+    pass
+
+if not ready:
+    exit()
 
 # Program
 newlogpath = os.path.join(os.getcwd(), 'logs', dt.datetime.now().strftime('%Y-%m-%d %H.%M.%S %p.log').replace('/', '-').replace(':', ';'))
