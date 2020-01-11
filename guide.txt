@@ -1,0 +1,196 @@
+==============
+    JSON
+==============
+
+The JSON file format is a common method of storing data that allows JavaScript-style objects to be saved cleanly.
+The syntax used is exactly like JavaScript.
+Whitespace such as indentation and newlines is ignored.
+
+The available data types are:
+    Lists []
+    Dictionaries {}
+    Strings "" (single quotes '' are not allowed)
+    Booleans true, false
+    Integers
+    Floats
+    null
+
+The first object written in a JSON file is the one loaded (usually a dictionary or list).
+An example of a dictionary stored can be seen in settings.json.
+An example of a list stored can be seen in channels.json.
+
+==============
+CHANNEL CONFIG
+==============
+
+Channel config files must be JSON format containing a list of dicts.
+The file may be located anywhere.
+
+It is recommended that all parameters listed here be defined explicitly, even if they take their default values.
+
+Each channel is defined by a dict in the list. The following options are available for channels:
+    name - string displayed in the top right corner of a channel
+    color - string defining channel color; hex color codes with a # are accepted, as well as the color names listed here  https://wiki.tcl-lang.org/page/Color+Names%2C+running%2C+all+screens
+    gain - initial gain for the channel, as a direct increase in dB; float or integers are acceptable
+    mono - boolean; true forces all songs in the channel to use one audio channel; false forces all songs to use two
+    slot - integer; defines vertical position of the channel in the channel list; negative values are accepted, and numbers can be skipped; putting null instead of an integer is allowed, and the channel will be put wherever space is available
+
+
+Template:
+{
+    "name": "Unnamed Channel",
+    "color": "#fff",
+    "gain": 0.0,
+    "mono": false,
+    "slot": 0
+}
+
+==============
+TRACK CONFIG
+==============
+
+Track config files must be in JSON format containing a list of dicts.
+The file may be located anywhere.
+
+Tracks can be loaded either from a file or from a YouTube / YouTube Music URL.
+If a URL is given, the file parameter will be ignored.
+The highest quality audio stream available will be downloaded and cached for future use; this means the first time Channeller is run with new URLs, it will load much slower than it normally will.
+Cached videos are matched to their URLs in /yt_cache/urls.json
+
+Files given that are not .wav will be converted and cached as a .wav because they require much less processing due to storing audio data in a raw format.
+Almost any file type can be used, but the first time Channeller is run with non-wavs, they will load somewhat slower than normal.
+
+The only required parameters are file / url. Everything else is optional.
+
+Each track is defined by a dict in the list. The follow options are available for tracks:
+    file - string with a path to the file; ignored if URL is passed; if null is provided, the track will be completely empty except for delay_in and delay_out, which can be used to create silent tracks
+    url - string with a YouTube or YouTube Music URL
+    name - string that will be used to display the song; if blank, the file name or YouTube video title will be used instead
+
+    start_sec - float or integer defining how far into the track to start
+    end_sec - float or integer defining how far into the song to play; if null is given, the song will end naturally
+    fade_in - float or integer defining seconds of fade-in; applied at start_sec
+    fade_out - float or integer defining seconds of fade-out; applied at end_sec
+    delay_in - float or integer defining seconds of silence at the start of the track; does not interfere with fade_in or start_sec
+    delay_out - float or integer defining seconds of silence at the end of the track; does not interfere with fade_out or end_sec
+
+    gain - float or integer setting initial track gain; it is recommended that you act as if this were preset, although this can be modified in your Channeller session in real time
+
+    repeat - integer number of times to repeat the song; does not interfere with start, end, fades, or delay
+    repeat_transition_duration - float or integer seconds of additional silence or crossfade to apply between repeats
+    repeat_transition_is_xf - boolean; true uses crossfade between repeats, false just uses delay
+    cut_leading_silence - boolean; true will exclude any silent or excessively quiet audio before the track's audio actually starts
+
+    autofollow - list of strings, with each string being the NAME of another track to immediately follow this track or the previous autofollow tracks; tracks used in autofollow lists will not be included explicitly in the channel, and will be attached to the end of this track
+    timed_commands - list of lists of a float, defining how many seconds into the track until triggered, and a string, with Python code to execute; see the CODE EXECUTION section for more information on what the code can do
+
+Quick General Template:
+{
+    "file": ""
+    "url": ""
+    "name": ""
+}
+
+Full Template:
+{
+    "file": "",
+    "url": "",
+    "name": "",
+    "start_sec": 0.0,
+    "end_sec": null,
+    "fade_in": 0.0,
+    "fade_out": 0.0,
+    "delay_in": 0.0,
+    "delay_out": 0.0,
+    "gain": 0.0,
+    "repeat": 0,
+    "repeat_transition_duration": 0.0,
+    "repeat_transition_is_xf": false,
+    "cut_leading_silence": false,
+    "autofollow": [
+        ""
+    ],
+    "timed_commands": [
+        [
+            0.0,
+            ""
+        ]
+    ]
+}
+
+
+==============
+CUE CONFIG
+==============
+
+Cue config files should end with .cfg.
+The file may be located anywhere.
+
+In a Cue File, every line is its own cue and is automatically numbered.
+Each line is Python code to be executed when the cue is activated; see the CODE EXECUTION section for more information.
+If a comment (#) is put after the line, it will be used as the cue description displayed.
+
+Note that multiple Python statements can be placed on a single line by separating them with semicolons.
+
+==============
+SETTINGS
+==============
+/config/settings.json allows a number of settings to be changed.
+
+scroll_fraction defines how much of the screen will move when the scroll wheel is spun 1 tick.
+
+cue_number_start defines what number the first cue will take; internally it is 0, but to the user the default is 1.
+track_number_start does the same thing but for the track number.
+
+next and back do the same thing as the red buttons on the bottom of the screen; they will NOT activate any cues.
+stop_all will stop ALL channels playing, like the blue stop button in the bottom left.
+go_cue_next will activate the current cue AND go to the next one. This is different from the GO button in the bottom right, which only activates the current cue.
+
+Available keybinds can be found on the left-hand side of the dict in keymap.py.
+Most of them are just the character or name of the key.
+
+
+==============
+CODE EXECUTION
+==============
+Because Cues and Timed Commands directly execute Python, they are capable of interacting with the program in whatever way desired, and pretty much anything can be done with them.
+Note that all text printed to the console will be logged. This allows you to, for example, log when a song starts or ends
+
+
+Common general items:
+    chan(name)   - fetches the Channel object of a certain channel name
+    view(name)   - fetches the ChannelView object of a certain channel name
+    cues         - the CueManager object in use
+    manager      - the Manager object in use
+    stop_all()   - stops ALL channels  (equivalent to manager.stop_all())
+
+Common Channel methods:
+    c.goto(i)    - sends the channel to the song of the given index
+    c.play(i)    - plays the given song index, or the current song if no index is passed
+    c.stop(i)    - stops the given song index, or the current song if no index is passed
+    c.pause(i)   - pauses the given song index, or the current song if no index is passed
+    c.resume(i)  - resumes the given song index, or the current song if no index is passed
+
+    c.next()     - goes to the next song
+    c.back()     - goes to the previous song
+    c.first()    - goes to the first song in the channel
+    c.last()     - goes to the last song in the channel
+
+    c.stop_all() - stops all songs playing in the channel
+
+    c.fade_gain(to, duration) - fades the channel to a certain gain over the given duration
+
+    c.current    - gets the Track object of the current song in the channel
+
+Common ChannelView methods:
+    cv.current   - gets the Track object of the current song in the channel OR an empty Track if it's undefined
+
+Common CueManager methods:
+    cm.next()    - goes to the next cue
+    cm.back()    - goes to the previous cue
+    cm.do()      - activates the current cue
+    cm.go()      - activates the current cue AND goes to the next one
+
+Common Manager methods:
+    m.stop_all() - stops all channels
+    m.tget(name) - gets a Track object by its name, assuming it had a unique name

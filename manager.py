@@ -43,7 +43,8 @@ class Manager:
 
     def create_channel(self, name, color, gain, mono=False, slot=None):
         self.channels[name] = c = audio.Channel(name, color, gain, mono=mono)
-        self._slots[name] = slot or self.i
+        # slot if not None, else whatever index we're at, but if that's taken by a manual slot, just put it at the end
+        self._slots[name] = slot if slot is not None else self.i if self.i not in self._slots.values() else max(self._slots.values()) + 1
         if slot is None:
             self.i += 1
         return c
@@ -208,18 +209,20 @@ class Manager:
 
                 tracks_to_remove = []
                 for track in track_list:
-                    for af_name in track.auto_follow_mods:
-                        # "track name"
-                        af_track = self.track_dict[af_name]
-                        track.autofollow(af_track)
-                        tracks_to_remove.append(af_track)
-                        # Remove auto'd tracks from the queue since they attach to the parent
-
                     for at_data in track.at_time_mods:
                         # [5.0, "print('hello')"]
                         # we'll exec
                         t, f = at_data
                         track.at_time(t, lambda: exec(f))
+
+                    for af_name in track.auto_follow_mods:
+                        # "track name"
+                        af_track = self.track_dict[af_name]
+                        track.autofollow(af_track)
+                        # inherit timed commands
+                        track.at_time_mods += [(t+af_track.length*1000, f) for t,f in af_track.at_time_mods]
+                        tracks_to_remove.append(af_track)
+                        # Remove auto'd tracks from the queue since they attach to the parent
 
                 # REMOVE
                 for track in tracks_to_remove:

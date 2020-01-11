@@ -91,15 +91,16 @@ class Channel:
     def fade_gain(self, to, duration):
         Thread(target=self._fade_gain, args=(to, duration), daemon=True).start()
     def _fade_gain(self, to, duration, interval=10):
-        self.fading = True
-        # interval is in ms
-        duration *= 1000
-        delta = (to - self.gain) * (interval / duration)
-        for _ in range(duration//interval):
-            self.gain += delta
-            sleep(interval/1000)
+        self.fading = True  # takes control of the gain slider
+        if duration:
+            # interval is in ms
+            duration *= 1000
+            delta = (to - self.gain) * (interval / duration)
+            for _ in range(duration//interval):
+                self.gain += delta
+                sleep(interval/1000)
         self.gain = float(to)
-        sleep(0.05)
+        sleep(0.05)  # lets the screen update with the final gain before relinquishing control over the slider
         self.fading = False
 
     def queue(self, track, i=-1):
@@ -237,8 +238,11 @@ class Track:
                          (loaded[self.start + (detect_leading_silence(loaded) if cut_leading_silence else 0):self.end].fade_in(self.fade[0]).fade_out(self.fade[1]))
             # repeats; track + delay + track + ...
             if repeat_transition_is_xf: # delay
-                for _ in range(repeat):
-                    self.track += AudioSegment.silent(int(repeat_transition_duration*1000)) + self.track
+                if repeat_transition_duration:
+                    for _ in range(repeat):
+                        self.track += AudioSegment.silent(int(repeat_transition_duration*1000)) + self.track
+                else:
+                    self.track *= repeat
             else: # xf
                 for _ in range(repeat):
                     self.track = self.track.append(self.track, crossfade=repeat_transition_duration)
