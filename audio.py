@@ -6,6 +6,7 @@ from time import sleep
 from pydub import AudioSegment
 from pydub.utils import make_chunks
 from pydub.effects import compress_dynamic_range
+import builtins
 
 PA = pyaudio.PyAudio()
 CHUNK = 5  # 50ms chunks for processing – if it's too low then the overhead gets larger than the chunks are!
@@ -185,6 +186,7 @@ class Channel:
 
 
 class Track:
+    LOCALS = {}
     def __init__(self, file, name='',
                  start_sec=0.0, end_sec=None, fade_in=0.0, fade_out=0.0, delay_in=0.0, delay_out=0.0, gain=0.0, repeat=0,
                  repeat_transition_duration=0.1, repeat_transition_is_xf=False, cut_leading_silence=False,
@@ -292,9 +294,9 @@ class Track:
             self.play_time += CHUNK
             if self.queue_index != len(self.at_time_queue) and abs(self.at_time_queue[self.queue_index][0] - self.play_time) < CHUNK:
                 # If within a CHUNK of the execution time
-                for f in self.at_time_queue[self.queue_index][1]:
+                for s in self.at_time_queue[self.queue_index][1]:
                     try:
-                        f()
+                        exec(s, builtins.__dict__, self.LOCALS)
                     except Exception as e:
                         print('Timed command failed:', e)
                 self.queue_index += 1
@@ -316,10 +318,10 @@ class Track:
             self.playing = False
             self._renew_thread()
 
-    def at_time(self, sec, *f):
+    def at_time(self, sec, *execstr):
         q = self.at_time_queue
         ms = int(sec*1000)
-        data = (ms, f)
+        data = (ms, execstr)
         if not q:  # Empty queue, just append
             q.append(data)
         else:  # Iterate through the queue until we hit something that's larger; if there's nothing larger, append

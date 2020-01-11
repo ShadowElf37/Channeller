@@ -101,12 +101,12 @@ with open(newlogpath, 'w+', encoding='utf-8') as log:
     m.load_channels(cdat)
     print('loading tracks')
     m.load_tracks(tdat, loading_text)
-    print('loaded successfully')
 
     cm = cues.CueManager(m)
     cv = views.CueView(app, cm)
 
-    cm.locals = {
+    print('loading cues')
+    cm.locals = audio.Track.LOCALS = {
         'cues': cm,
         'manager': m,
         'chan': m.chget,
@@ -115,6 +115,7 @@ with open(newlogpath, 'w+', encoding='utf-8') as log:
         'stop_all': m.stop_all
     }
     cm.load_file(fcue)
+    print('loaded')
 
     app.bind('MouseWheel', m.scroll)  # windows scroll
     app.bind("Button-4", m.scroll)  # linux scroll 1
@@ -142,9 +143,13 @@ with open(newlogpath, 'w+', encoding='utf-8') as log:
     del loading_text
 
     app.resize(700, 340)
+    print('creating views')
     m.generate_views()
+    print('Running...')
     app.run()
 
+
+# CUE, CHANNEL, TRACK GUIDES
 
 # EASIER WAY TO ADD TRACKS
 # TRACK/CHANNEL CFG WRITE TOOL todo
