@@ -9,6 +9,7 @@ class Cue:
         exec(self.code, builtins.__dict__, locals)
 
 class CueManager:
+    CUE_OFFSET = 0
     def __init__(self, channel_manager=None):
         self.m = channel_manager
         self.cues: [Cue] = []
@@ -41,6 +42,13 @@ class CueManager:
     def back(self):
         if self.check_i(self.i - 1):  # Needs to be allowed to go to -1
             self.i -= 1
+            return True
+        return False
+
+    def goto(self, i, offset=False):
+        OFFSET = self.CUE_OFFSET if offset else 0
+        if self.check_i(i - OFFSET):
+            self.i = i - OFFSET
             return True
         return False
 

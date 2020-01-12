@@ -1,92 +1,28 @@
 {
+    "SFX 1": [
+
+    ],
+    "SFX 2": [
+
+    ],
     "Soundtrack": [
         {
             "file": "Rap God.wav",
-            "url": "",
-            "name": "Rap God",
-            "start_sec": 0.0,
-            "end_sec": null,
-            "fade_in": 0.0,
-            "fade_out": 0.0,
-            "delay_in": 0.0,
-            "delay_out": 0.0,
-            "gain": 0,
-            "repeat": 0,
-            "repeat_transition_duration": 0.1,
-            "repeat_transition_is_xf": false,
-            "cut_leading_silence": false,
-            "autofollow": [],
-            "timed_commands": []
+            "name": "Rap God"
         },
         {
             "file": "From Peak to Peak.wav",
-            "url": "",
-            "name": "From Peak to Peak",
-            "start_sec": 0.0,
-            "end_sec": null,
-            "fade_in": 0.0,
-            "fade_out": 0.0,
-            "delay_in": 0.0,
-            "delay_out": 0.0,
-            "gain": 0.0,
-            "repeat": 0,
-            "repeat_transition_duration": 0.1,
-            "repeat_transition_is_xf": false,
-            "cut_leading_silence": false,
-            "autofollow": [],
-            "timed_commands": []
+            "name": "From Peak to Peak"
         },
         {
-            "file": "Like Toy Soldiers.mp3",
-            "url": "",
-            "name": "",
-            "start_sec": 0.0,
-            "end_sec": null,
-            "fade_in": 0.0,
-            "fade_out": 0.0,
-            "delay_in": 0.0,
-            "delay_out": 0.0,
-            "gain": 0.0,
-            "repeat": 0,
-            "repeat_transition_duration": 0.1,
-            "repeat_transition_is_xf": false,
-            "cut_leading_silence": false,
-            "autofollow": [],
-            "timed_commands": []
+            "file": "Like Toy Soldiers.mp3"
         },
         {
-            "file": "",
             "url": "https://youtube.com/watch?v=HIqQ0PfuPo8",
-            "name": "Stan by Eminem",
-            "start_sec": 0.0,
-            "end_sec": null,
-            "fade_in": 0.0,
-            "fade_out": 0.0,
-            "delay_in": 0.0,
-            "delay_out": 0.0,
-            "gain": 0.0,
-            "repeat": 0,
-            "repeat_transition_duration": 0.1,
-            "repeat_transition_is_xf": false,
-            "cut_leading_silence": false,
-            "autofollow": [],
-            "timed_commands": []
+            "name": "Stan by Eminem"
         },
         {
-            "file": "",
             "url": "https://music.youtube.com/watch?v=vQ0u09mFodw&list=RDAMVMoRAIA_F_sZs",
-            "name": "",
-            "start_sec": 0.0,
-            "end_sec": null,
-            "fade_in": 0.0,
-            "fade_out": 0.0,
-            "delay_in": 0.0,
-            "delay_out": 0.0,
-            "gain": 0.0,
-            "repeat": 0,
-            "repeat_transition_duration": 0.1,
-            "repeat_transition_is_xf": false,
-            "cut_leading_silence": false,
             "autofollow": [
                 "Stan by Eminem"
             ],

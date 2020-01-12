@@ -109,6 +109,7 @@ with open(newlogpath, 'w+', encoding='utf-8') as log:
     cm.locals = audio.Track.LOCALS = {
         'cues': cm,
         'manager': m,
+        'app': app,
         'chan': m.chget,
         'channel': m.chget,
         'view': m.vget,
@@ -129,14 +130,14 @@ with open(newlogpath, 'w+', encoding='utf-8') as log:
     settings = json.load(open('config/settings.json'))
 
     m.SCROLL = settings['scroll_fraction']
-    views.CueView.CUE_OFFSET = settings['cue_number_start']
+    views.CueView.CUE_OFFSET = cues.CueManager.CUE_OFFSET = settings['cue_number_start']
     views.ChannelView.TRACK_OFFSET = audio.Channel.TRACK_OFFSET = settings['track_number_start']
 
-    import keymap as km
-    app.bind(km.map[settings['keybind_last_cue']], lambda e: cm.back())
-    app.bind(km.map[settings['keybind_next_cue']], lambda e: cm.next())
-    app.bind(km.map[settings['keybind_stop_all']], lambda e: m.stop_all())
-    app.bind(km.map[settings['keybind_cue_go_next']], lambda e: cm.go())
+    km = json.load(open(app.CFG + 'keymap.json'))
+    app.bind(km[settings['keybind_last_cue']], lambda e: cm.back())
+    app.bind(km[settings['keybind_next_cue']], lambda e: cm.next())
+    app.bind(km[settings['keybind_stop_all']], lambda e: m.stop_all())
+    app.bind(km[settings['keybind_cue_go_next']], lambda e: cm.go())
 
     loading_label.destroy()
     del loading_label

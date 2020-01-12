@@ -1,5 +1,5 @@
 ==============
-    JSON
+JSON FORMAT
 ==============
 
 The JSON file format is a common method of storing data that allows JavaScript-style objects to be saved cleanly.
@@ -49,7 +49,8 @@ Template:
 TRACK CONFIG
 ==============
 
-Track config files must be in JSON format containing a list of dicts.
+Track config files must be in JSON format containing a dict of channel names, each to a list of dicts defining each track.
+If a channel name is not present, no tracks will be loaded to it.
 The file may be located anywhere.
 
 Tracks can be loaded either from a file or from a YouTube / YouTube Music URL.
@@ -81,8 +82,8 @@ Each track is defined by a dict in the list. The follow options are available fo
     repeat_transition_is_xf - boolean; true uses crossfade between repeats, false just uses delay
     cut_leading_silence - boolean; true will exclude any silent or excessively quiet audio before the track's audio actually starts
 
-    autofollow - list of strings, with each string being the NAME of another track to immediately follow this track or the previous autofollow tracks; tracks used in autofollow lists will not be included explicitly in the channel, and will be attached to the end of this track
-    timed_commands - list of lists of a float, defining how many seconds into the track until triggered, and a string, with Python code to execute; see the CODE EXECUTION section for more information on what the code can do
+    autofollow - list of strings, with each string being the NAME of another track to immediately follow this track or the previous autofollow tracks; tracks used in autofollow lists will not be included explicitly in the channel, and will instead be attached to the end of any tracks that ask for it
+    timed_commands - list of lists of a float, defining how many seconds into the track until triggered, and a string, with Python code to execute; see the CODE EXECUTION section for more information on what the code can do; commands will still work when attached via autofollow
 
 Quick General Template:
 {
@@ -146,7 +147,7 @@ next and back do the same thing as the red buttons on the bottom of the screen; 
 stop_all will stop ALL channels playing, like the blue stop button in the bottom left.
 go_cue_next will activate the current cue AND go to the next one. This is different from the GO button in the bottom right, which only activates the current cue.
 
-Available keybinds can be found on the left-hand side of the dict in keymap.py.
+Available keybinds can be found on the left-hand side of keymap.json.
 Most of them are just the character or name of the key.
 
 
@@ -165,8 +166,9 @@ Common general items:
     stop_all()   - stops ALL channels  (equivalent to manager.stop_all())
 
 Common Channel methods:
-    c.goto(i)    - sends the channel to the song of the given index
-    c.play(i)    - plays the given song index, or the current song if no index is passed
+    c.goto(i)    - sends the channel to the song of the given index  (NOTE: this ignores the track offset in settings.json, so 0 is always the first track, unless offset=True is passed)
+
+    c.play(i)    - plays the given song index, or the current song if no index is passed  (these do NOT ignore the track offset)
     c.stop(i)    - stops the given song index, or the current song if no index is passed
     c.pause(i)   - pauses the given song index, or the current song if no index is passed
     c.resume(i)  - resumes the given song index, or the current song if no index is passed
@@ -181,6 +183,7 @@ Common Channel methods:
     c.fade_gain(to, duration) - fades the channel to a certain gain over the given duration
 
     c.current    - gets the Track object of the current song in the channel
+    c._queue     - gets the Track list
 
 Common ChannelView methods:
     cv.current   - gets the Track object of the current song in the channel OR an empty Track if it's undefined
@@ -190,6 +193,10 @@ Common CueManager methods:
     cm.back()    - goes to the previous cue
     cm.do()      - activates the current cue
     cm.go()      - activates the current cue AND goes to the next one
+
+    cm.goto(i)   - goes to the cue passed  (NOTE: this ignores the cue offset in settings.json, so 0 is always the first cue, unless offset=True is passed)
+
+    cm.cues      - gets the Cue list
 
 Common Manager methods:
     m.stop_all() - stops all channels

@@ -1,5 +1,5 @@
-map = {
-    "": None,
+{
+    "": null,
     " ": "Key-space",
     "space": "Key-space",
     "ctrl": "Key-Control_L",
