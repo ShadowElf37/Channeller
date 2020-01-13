@@ -55,7 +55,7 @@ def r(*args):
     ready = True
     root.destroy()
 
-start = tk.Button(root, text='Enter', command=r)
+start = tk.Button(root, text='Start', command=r)
 start.grid(row=5, column=2)
 root.bind('<Return>', r)
 

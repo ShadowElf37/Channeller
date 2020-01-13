@@ -217,7 +217,8 @@ class Manager:
 
                     for af_name in track.auto_follow_mods:
                         # "track name"
-                        af_track = self.track_dict[af_name]
+                        if not (af_track := self.track_dict.get(af_name)):
+                            continue
                         track.autofollow(af_track)
                         # inherit timed commands
                         track.at_time_mods += [(t+af_track.length*1000, f) for t,f in af_track.at_time_mods]
