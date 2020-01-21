@@ -7,11 +7,28 @@ import datetime as dt
 import os
 from extras import Path
 import ntpath
+from sounddevice import query_devices
+# OSC
+
+"""
+def procloop():
+	while True:
+		self.condition.wait()
+		self._play()
+
+Different speakers are audio devices we can set the stream to out there
+
+STREAM CREATION HAPPENS IN _play()
+"""
 
 # FILE SELECTION
 cfolder = Path(os.getcwd(), 'config')
 conf = open(cfolder + 'stored.json', 'r+')
 data = json.load(conf)
+
+# Write down available audio devices real quick
+with open(cfolder + 'audio_devices.txt', 'w') as f:
+    f.write(str(query_devices()))
 
 lfchan = data['last_channel_file'] or cfolder + 'channels.json'
 lftrack = data['last_track_file'] or cfolder + 'tracks.json'
@@ -133,7 +150,7 @@ with open(newlogpath, 'w+', encoding='utf-8') as log:
     views.CueView.CUE_OFFSET = cues.CueManager.CUE_OFFSET = settings['cue_number_start']
     views.ChannelView.TRACK_OFFSET = audio.Channel.TRACK_OFFSET = settings['track_number_start']
 
-    km = json.load(open(app.CFG + 'keymap.json'))
+    km = json.load(open(cfolder + 'keymap.json'))
     app.bind(km[settings['keybind_last_cue']], lambda e: cm.back())
     app.bind(km[settings['keybind_next_cue']], lambda e: cm.next())
     app.bind(km[settings['keybind_stop_all']], lambda e: m.stop_all())
