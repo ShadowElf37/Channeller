@@ -41,8 +41,8 @@ class Manager:
         for c in self.channels.values():
             c.stop_all()
 
-    def create_channel(self, name, color, gain, mono=False, slot=None):
-        self.channels[name] = c = audio.Channel(name, color, gain, mono=mono)
+    def create_channel(self, name, color, gain, mono=False, slot=None, device_index=None):
+        self.channels[name] = c = audio.Channel(name, color, gain, mono=mono, device_index=device_index)
         # slot if not None, else whatever index we're at, but if that's taken by a manual slot, just put it at the end
         self._slots[name] = slot if slot is not None else self.i if self.i not in self._slots.values() else max(self._slots.values()) + 1
         if slot is None:
