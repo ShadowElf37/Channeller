@@ -7,5 +7,8 @@
   "keybind_next_cue": "right",
   "keybind_last_cue": "left",
   "keybind_stop_all": "s",
-  "keybind_cue_go_next": "space"
+  "keybind_cue_go_next": "space",
+
+  "osc_host_ip": "0.0.0.0",
+  "osc_host_port": 57120
 }

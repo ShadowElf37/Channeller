@@ -152,7 +152,8 @@ class Manager:
 
                         loading_notifier.set(f'Resolving \n {url_short} \n ({i}/{l})')
                         self.app.root.update()
-
+                        print('resolving url')
+                        vid = None
                         if video_id in urls:  # We keep urls stored with their video titles in case we have them; cuts the 2 seconds required for pafy.new()
                             name = urls[video_id]
                         else:  # If it's not listed then that's very suspicious, probably not cached, so we resolve it ourselves
@@ -170,13 +171,21 @@ class Manager:
                             # If you clear urls.json but still have the wav hanging around this will save you,
                             # otherwise it's a redundant check
                             track['file'] = wave_path
+                            print('not downloading')
 
                         else:  # But if not cached, gotta download!
+                            if vid is None:
+                                try:
+                                    vid = pafy.new(video_id)
+                                except:
+                                    continue
+
                             loading_notifier.set(f'Downloading "{name}" from YouTube ({i}/{l})')
                             self.app.root.update()
-
+                            print('downloading!')
+                            print(vid)
                             aud = vid.getbestaudio()  # mod this
-
+                            print('1')
                             # download it to the yt_cache
                             cache_fp = cache + (vid.title + '.' + aud.extension)
                             aud.download(cache_fp)
@@ -234,4 +243,4 @@ class Manager:
                     channel.queue(t)
 
         json.dump(urls, open(cache + 'urls.json', 'w'), indent=4)
-
+        print('cached urls')

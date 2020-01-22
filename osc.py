@@ -1,15 +1,16 @@
-from oscpy.server import OSCThreadServer
+from oscpy.server import OSCThreadServer as _OSCThreadServer
 from time import sleep
 
 ENC = 'utf-8'
 def b(obj):
+    # converts strings and lists to bytes; recursive too!
     if type(obj) in (list, tuple):
         return type(obj)([b(s) for s in obj])
     return bytes(obj, ENC)
 
 class Server:
     def __init__(self, host='0.0.0.0', port=57120, encoding='', timeout=0.01):
-        self.osc = OSCThreadServer(encoding=encoding, timeout=timeout)
+        self.osc = _OSCThreadServer(encoding=encoding, timeout=timeout)
         self.host = host
         self.port = port
         self.socket = None
