@@ -93,19 +93,19 @@ class SharedObject:
     def __iadd__(self, other):
         with self.lock:
             self.value += other
-        return self.value
+        return self
     def __isub__(self, other):
         with self.lock:
             self.value -= other
-        return self.value
+        return self
     def __imul__(self, other):
         with self.lock:
             self.value *= other
-        return self.value
+        return self
     def __idiv__(self, other):
         with self.lock:
             self.value /= other
-        return self.value
+        return self
 
     def __index__(self):
         return self.__int__()

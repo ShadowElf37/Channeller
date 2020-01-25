@@ -272,7 +272,7 @@ class Track:
 
         self.proc = mp.Process(target=self.procloop, daemon=True)
         self.restart_lock = mp.Lock()
-        self.restart_lock.acquire()
+        self.restart_lock.acquire(False)
         # ^^^ AUTOPLAY AT LAUNCH FOR DEBUG
 
         self.pause_lock = mp.Lock()
@@ -342,7 +342,6 @@ class Track:
                 # Couldn't write to host device; maybe it unplugged?
                 pass
             #print('wrote!')
-            print('$$$', self.play_time, self.old)
             self.play_time += CHUNK
             if self.queue_index != len(self.at_time_queue) and abs(self.at_time_queue[self.queue_index][0] - self.play_time) < CHUNK:
                 # If within a CHUNK of the execution time
@@ -365,7 +364,7 @@ class Track:
             self.temp_end.set(int(self.length*1000))
             print('RENEW')
             self.playing.set(False)
-            self.restart_lock.acquire()
+            self.restart_lock.acquire(False)
 
     def at_time(self, sec, *execstr):
         q = self.at_time_queue
@@ -382,10 +381,12 @@ class Track:
 
     def start_at(self, sec=None):
         self.old.set(True)
+        print('we good?')
         self._renew()
+        print('renewed !')
         if sec:
             self.temp_start.set(int(sec*1000))
-        self.play_time.set(self.temp_start)
+        self.play_time.set(self.temp_start.value)
         # Fetch the nearest queue item by distance to self.temp_start, find it's index, assign to queue_index
         if self.at_time_queue:
             self.queue_index = sorted([(abs(dat[0]-self.temp_start), i) for i,dat in enumerate(self.at_time_queue)], key=lambda i: i[0])[0][1]
