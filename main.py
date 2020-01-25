@@ -142,6 +142,12 @@ if __name__ == "__main__":
         # SETTINGS
         settings = json.load(open(cfolder + 'settings.json'))
 
+        views.ChannelView.GAIN_MAX = settings['gain_ceiling']
+        views.ChannelView.GAIN_MIN = settings['gain_floor']
+        views.ChannelView.GAIN_STEP_INC = settings['gain_step']
+        for cv in m.views.values():
+            cv.apply_gain_minmax()
+
         m.SCROLL = settings['scroll_fraction']
         views.CueView.CUE_OFFSET = cues.CueManager.CUE_OFFSET = settings['cue_number_start']
         views.ChannelView.TRACK_OFFSET = audio.Channel.TRACK_OFFSET = settings['track_number_start']

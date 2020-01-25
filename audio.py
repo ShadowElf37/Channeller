@@ -114,7 +114,7 @@ class Channel:
             for _ in range(duration//interval):
                 self.gain += delta
                 sleep(interval/1000)
-        self.gain = float(to)
+        self.gain.set(float(to))
         sleep(0.05)  # lets the screen update with the final gain before relinquishing control over the slider
         self.fading = False
 
@@ -216,7 +216,7 @@ class Track:
         self.end = int(end_sec * 1000) if end_sec else None
         self.fade = (int(fade_in*1000) or 1, int(fade_out*1000) or 1)  # Fades of 0.0 crash for some reason, so 1 ms will be preferred as a safety measure
         self.delay = (int(delay_in * 1000), int(delay_out * 1000))
-        self.gain = float(gain)  # applied in real time
+        self.gain = shared.Float(gain)  # applied in real time
         self.channel = None
         self.empty = file is None
         self.repeats = repeat
@@ -353,7 +353,7 @@ class Track:
                 self.queue_index += 1
             # print(self.play_time)
         self._renew()
-        self.play_time.set(0)
+        #self.play_time.set(0)
         stream.stop_stream()
 
     def _renew(self):
@@ -422,10 +422,6 @@ class Track:
         if self.paused:
             self.resume()
         self.play_time.set(0)
-        #try:
-        #    self.thread.join(0.2)
-        #except RuntimeError:
-        #    pass
 
     def _die(self):
         # Track cannot be played anymore once this is called

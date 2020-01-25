@@ -9,6 +9,10 @@
   "keybind_stop_all": "s",
   "keybind_cue_go_next": "space",
 
+  "gain_ceiling": 15.0,
+  "gain_floor": -99.9,
+  "gain_step": 0.5,
+
   "osc_host_ip": "0.0.0.0",
   "osc_host_port": 57120
 }

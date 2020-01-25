@@ -1,6 +1,7 @@
 import audio
 import graphics
 import cues
+import tkinter as tk
 
 def hms(sec):
     sec = int(sec)
@@ -20,6 +21,10 @@ class ChannelView:
     BG = '#111'
     BUTTONBG = '#aaa'
     SPACING = 0.205
+
+    GAIN_MIN = -99.9
+    GAIN_MAX = 15.0
+    GAIN_STEP_INC = 0.5
 
     TRACK_OFFSET = 0
 
@@ -146,10 +151,10 @@ class ChannelView:
         self.tr_gain_label = graphics.Label(app, 'TR GAIN', x=0.82, y=0.15 + y_off, fontscale=0.6, fg=self.FG_1,
                                             bg=self.BG)
 
-        self.ch_gain_inc = graphics.Incrementor(app, min=-99.9, max=10, step=0.5, x=0.92, y=0.111 + y_off, w=5,
+        self.ch_gain_inc = graphics.Incrementor(app, min=self.GAIN_MIN, max=self.GAIN_MAX, step=self.GAIN_STEP_INC, x=0.92, y=0.111 + y_off, w=5,
                                                 yoffset=0,
                                                 bg='#000', fg=self.color, buttonbg=self.BUTTONBG, fontscale=1)
-        self.tr_gain_inc = graphics.Incrementor(app, min=-99.9, max=10, step=0.5, x=0.8125, y=0.111 + y_off, w=5,
+        self.tr_gain_inc = graphics.Incrementor(app, min=self.GAIN_MIN, max=self.GAIN_MAX, step=self.GAIN_STEP_INC, x=0.8125, y=0.111 + y_off, w=5,
                                                 yoffset=0,
                                                 bg='#000', fg=self.color, buttonbg=self.BUTTONBG, fontscale=1)
 
@@ -193,6 +198,12 @@ class ChannelView:
     def cmd_stop(self):
         self.channel.stop()
 
+    def apply_gain_minmax(self):
+        ti: tk.Spinbox = self.tr_gain_inc.inc
+        ci: tk.Spinbox = self.ch_gain_inc.inc
+        ti.config(from_=self.GAIN_MIN, to=self.GAIN_MAX, step=self.GAIN_STEP_INC)
+        ci.config(from_=self.GAIN_MIN, to=self.GAIN_MAX, step=self.GAIN_STEP_INC)
+
     def update_labels(self):
         #self.compression_label.write(self.compression)
         #self.gain_label.write(self.gain)
@@ -223,12 +234,12 @@ class ChannelView:
                 self.ch_gain_inc.set(self.channel.gain)
             else:
                 g = self.ch_gain_inc.get()
-                self.channel.gain = float(g)
+                self.channel.gain.set(float(g))
         except (ValueError,):
             pass
         try:
             g = self.tr_gain_inc.get()
-            self.current.gain = float(g)
+            self.current.gain.set(float(g))
         except (ValueError,):
             pass
 
