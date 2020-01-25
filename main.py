@@ -23,6 +23,8 @@ if __name__ == "__main__":
     import ntpath
     from sounddevice import query_devices
 
+    print('PID', os.getpid())
+
     # FILE SELECTION
     cfolder = Path(os.getcwd(), 'config')
     conf = open(cfolder + 'stored.json', 'r+')

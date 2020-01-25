@@ -192,7 +192,7 @@ class Incrementor(Element):
 
     def set(self, val):
         self.inc.delete(0, 'end')
-        self.inc.insert(0, val)
+        self.inc.insert(0, str(val))
     def get(self):
         return self.inc.get()
 

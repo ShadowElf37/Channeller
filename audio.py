@@ -9,8 +9,8 @@ from pydub.effects import compress_dynamic_range
 import builtins
 import multiprocessing as mp
 from math import ceil
+import shared
 
-PA = pyaudio.PyAudio()
 CHUNK = 15  # 50ms chunks for processing – if it's too low then the overhead gets larger than the chunks are!
 DIR = os.getcwd()
 
@@ -29,8 +29,8 @@ def detect_leading_silence(sound, silence_threshold=-50.0, chunk_size=10):
 
     return trim_ms
 
-
-def make_chunks(audio_segment, chunk_length):
+# Uses a generator instead of a list because when it's a list mp breaks horrendously
+def make_chunks(audio_segment: AudioSegment, chunk_length):
     """
     Breaks an AudioSegment into chunks that are <chunk_length> milliseconds
     long.
@@ -46,7 +46,7 @@ class Channel:
     TRACK_OFFSET = 0
 
     def __init__(self, name='Unnamed Channel', color='#FFF', gain=0.0, mono=False, device_index=None):
-        self.gain = gain
+        self.gain = shared.Float(gain)
         self.current: Track = Track(None)
         self._queue: [Track] = []
         self.index = 0
@@ -59,6 +59,7 @@ class Channel:
         self.device = device_index
 
     # Compression applies to ALL tracks queued in a channel - if you want only certain tracks compressed, a separate channel should be created for them
+    # UNUSED because it's SO EXPENSIVE
     def with_compression(self, threshold=-20.0, ratio=4.0, attack=5.0, release=50.0):
         """ --FROM PYDUB SRC--
             Keyword Arguments:
@@ -271,17 +272,18 @@ class Track:
 
         self.proc = mp.Process(target=self.procloop, daemon=True)
         self.restart_lock = mp.Lock()
-        #self.restart_lock.acquire()
+        self.restart_lock.acquire()
+        # ^^^ AUTOPLAY AT LAUNCH FOR DEBUG
 
         self.pause_lock = mp.Lock()
-        self.playing = False
-        self.paused = False
-        self.play_time = 0  # ms
-        self.temp_start = 0 # ms
-        self.temp_end = int(self.length*1000)
+        self.playing = shared.Bool()
+        self.paused = shared.Bool()
+        self.play_time = shared.Int()  # ms
+        self.temp_start = shared.Int() # ms
+        self.temp_end = shared.Int(self.length*1000)
         self.at_time_queue = []
         self.queue_index = 0
-        self.old = False  # False until played; False when renewed, to make sure you don't renew it multiple times
+        self.old = shared.Bool()  # False until played; False when renewed, to make sure you don't renew it multiple times
 
     def __repr__(self):
         return f'<Track "{self.name}">'
@@ -294,6 +296,8 @@ class Track:
         self.proc.start()
 
     def procloop(self):
+        print('started track', self.name, 'in process', self.proc.pid)
+        PA = pyaudio.PyAudio()
         stream = PA.open(format=PA.get_format_from_width(self.track.sample_width),
                          channels=self.track.channels,
                          rate=self.track.frame_rate,
@@ -302,6 +306,7 @@ class Track:
         try:
             print('starting track process loop %s' % self)
             while True:
+                self._renew()
                 print('waiting... %s' % self)
                 self.restart_lock.acquire(True)
                 print('here we go! %s' % self)
@@ -309,28 +314,35 @@ class Track:
         finally:
             stream.close()
 
-    def _play(self, stream):
-        self.playing = True
-        self.old = True
+    def _play(self, stream: pyaudio.Stream):
+        self.playing.set(True)
+        self.old.set(True)
         print('playing')
         print('check 3')
         for chunk in make_chunks(self.track[self.temp_start:self.temp_end], CHUNK):
-            print('chunked')
+            #print('chunked')
             if self.paused:
                 print('lock')
                 stream.stop_stream()  # Sometimes audio gets stuck in the pipes and pops when pausing/resuming
                 self.pause_lock.acquire()  # yay Locks; blocks until released in resume()
+            #print('pause checked')
             if not self.playing:
                 print('stop')
                 break  # Kills thread
+            #print('play checked')
             #print('round')
             if stream.is_stopped():
                 stream.start_stream()
+            #print('stop checked')
             try:
-                stream.write((chunk + self.channel.gain + self.gain)._data)  # Live gain editing is possible because it's applied to each 50 ms chunk in real time
+                data = (chunk + self.channel.gain + self.gain)._data
+                #print('new segment created')
+                stream.write(data)  # Live gain editing is possible because it's applied to each 50 ms chunk in real time
             except OSError:
                 # Couldn't write to host device; maybe it unplugged?
                 pass
+            #print('wrote!')
+            print('$$$', self.play_time, self.old)
             self.play_time += CHUNK
             if self.queue_index != len(self.at_time_queue) and abs(self.at_time_queue[self.queue_index][0] - self.play_time) < CHUNK:
                 # If within a CHUNK of the execution time
@@ -342,21 +354,18 @@ class Track:
                 self.queue_index += 1
             # print(self.play_time)
         self._renew()
-        self.play_time = 0
+        self.play_time.set(0)
         stream.stop_stream()
-
-    def _renew_thread(self):
-        self.thread = Thread(target=self._play, daemon=True)
 
     def _renew(self):
         if self.old:
-            self.old = False
+            self.old.set(False)
             self.queue_index = 0
-            self.temp_start = 0
-            self.temp_end = int(self.length*1000)
+            self.temp_start.set(0)
+            self.temp_end.set(int(self.length*1000))
             print('RENEW')
-            self.playing = False
-            # self._renew_thread()
+            self.playing.set(False)
+            self.restart_lock.acquire()
 
     def at_time(self, sec, *execstr):
         q = self.at_time_queue
@@ -372,11 +381,11 @@ class Track:
             q.append(data)
 
     def start_at(self, sec=None):
-        self.old = True
+        self.old.set(True)
         self._renew()
         if sec:
-            self.temp_start = int(sec*1000)
-        self.play_time = self.temp_start
+            self.temp_start.set(int(sec*1000))
+        self.play_time.set(self.temp_start)
         # Fetch the nearest queue item by distance to self.temp_start, find it's index, assign to queue_index
         if self.at_time_queue:
             self.queue_index = sorted([(abs(dat[0]-self.temp_start), i) for i,dat in enumerate(self.at_time_queue)], key=lambda i: i[0])[0][1]
@@ -384,13 +393,14 @@ class Track:
     def end_at(self, sec=None):
         self._renew()
         if sec:
-            self.temp_end = int(sec * 1000)
+            self.temp_end.set(int(sec * 1000))
 
     def play(self):
         if self.empty:
             return
         print('releasing lock')
         # Must call renew() if playing multiple times due to threads being unable to restart
+        # print(self.restart_lock)
         try:
             self.restart_lock.release()
         except ValueError:
@@ -398,19 +408,19 @@ class Track:
 
     def pause(self):
         if not self.paused:
-            self.paused = True
+            self.paused.set(True)
 
     def resume(self):
         if self.paused:
-            self.paused = False
+            self.paused.set(False)
             self.pause_lock.release()
 
     def stop(self):
         if self.playing:
-            self.playing = False
+            self.playing.set(False)
         if self.paused:
             self.resume()
-        self.play_time = 0
+        self.play_time.set(0)
         #try:
         #    self.thread.join(0.2)
         #except RuntimeError:
@@ -418,7 +428,7 @@ class Track:
 
     def _die(self):
         # Track cannot be played anymore once this is called
-        self.playing = False
+        self.playing.set(False)
         self.proc.close()
         self.proc.join(0.5)
 
