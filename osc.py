@@ -32,13 +32,14 @@ class Server:
 
     def send_msg(self, client_name, address, *msg):
         return self.osc.send_message(b(address), b(msg), *self.clients[client_name])
+    send = send_msg
 
     def _send_msg_obj(self, client_name, msg):
         return self.send_msg(client_name, msg.addr, *msg.contents)
     def _send_bundle_obj(self, client_name, bundle):
         return self.osc.send_bundle(bundle.unwrap(), *self.clients[client_name])
 
-    def send(self, client_name, obj):
+    def send_obj(self, client_name, obj):
         if isinstance(obj, Message):
             return self._send_msg_obj(client_name, obj)
         return self._send_bundle_obj(client_name, obj)
