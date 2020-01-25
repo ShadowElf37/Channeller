@@ -1,3 +1,17 @@
+"""
+I don't like the multiprocessing.Value() interface – it's a little shallow and not very easy to port to
+The abstraction here adds automatic I/O locking, a simpler way to handle the datatypes, and support for most common operations and type conversions
+Containers and Strings are not supported whatsoever, but new simple primitives can be subclassed at the bottom with relative ease; just find the relevant ctype and copy from above
+
+Basic interface
+s = SharedObject()
+s.set(x) OR s.value = x
+s.get() OR s.value
+
+The lock can be accessed manually with s.lock
+The C-object itself can be accessed with s.cobj
+There is no reason to access the interval Value()
+"""
 from multiprocessing import Value
 import ctypes
 
@@ -135,6 +149,7 @@ class Char(SharedObject):
 class Null(SharedObject):
     def __init__(self):
         super().__init__(ctypes.c_void_p, self.NULL, lock=True)
+
 
 if __name__ == "__main__":
     v = Null()

@@ -220,9 +220,7 @@ class Manager:
                 for track in track_list:
                     for at_data in track.at_time_mods:
                         # [5.0, "print('hello')"]
-                        # we'll exec
-                        t, f = at_data
-                        track.at_time(t, lambda: exec(f))
+                        track.at_time(*at_data)
 
                     for af_name in track.auto_follow_mods:
                         # "track name"
