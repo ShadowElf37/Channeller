@@ -8,6 +8,7 @@ from pydub.utils import make_chunks
 from pydub.effects import compress_dynamic_range
 import multiprocessing as mp
 from math import ceil
+from extras import sizemb, safe_print as print
 import shared
 import sys
 
@@ -17,9 +18,6 @@ DIR = os.getcwd()
 PA = pyaudio.PyAudio()
 class DeviceDisconnected(BaseException):
     pass
-
-def sizemb(*obj):
-    return sum(sys.getsizeof(o) / 1000000 for o in obj)
 
 # Missing pydub feature
 def detect_leading_silence(sound, silence_threshold=-50.0, chunk_size=10):
@@ -149,12 +147,11 @@ class Channel:
         else:
             self._queue.insert(i, track)
 
-        print('initializing track...')
+        print('initializing %s...' % track)
         track.procinit()
         self.update()
         print('freeing %.2fMB of copied RAM...' % sizemb(track.track._data))
         del track.track  # The only place this is used should be in subprocesses, which have already copied the data over... therefore this is wasted RAM, and it is LARGE
-        print('done!')
 
     def goto(self, i, offset=False):
         if i is None:
@@ -311,7 +308,7 @@ class Track:
 
     def procloop(self, exec_queue, stdout):
         sys.stdout = sys.stderr = stdout
-        print('starting track process loop %s' % self)
+        print('subprocess for %s started' % self)
         stream = PA.open(format=PA.get_format_from_width(self.track.sample_width),
                          channels=self.track.channels,
                          rate=self.track.frame_rate,

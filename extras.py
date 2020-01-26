@@ -1,6 +1,14 @@
 from os.path import join
-import os
+import os, sys
 from multiprocessing.managers import BaseManager
+from multiprocessing import Lock
+
+
+IO_LOCK = Lock()
+def safe_print(*args):
+    global IO_LOCK
+    with IO_LOCK:
+        print(*args)
 
 
 class ProxyManager(BaseManager):
@@ -27,6 +35,10 @@ class NonceVar:
         pass
     def set(self, *args, **kwargs):
         pass
+
+
+def sizemb(*obj):
+    return sum(sys.getsizeof(o) / 1000000 for o in obj)
 
 
 def get_lines_of_code(start_path='.', exts=('js', 'py', 'html', 'css')):

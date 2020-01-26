@@ -16,7 +16,7 @@ from tkinter import filedialog as fd
 import ntpath
 from sounddevice import query_devices
 from threading import Thread
-from extras import Path, ProxyManager
+from extras import Path, ProxyManager, sizemb
 import userfunctions
 import multiprocessing as mp
 import graphics, audio, views, cues, manager, osc
@@ -217,7 +217,9 @@ if __name__ == "__main__":
             app.resize(700, 340)
             print('creating views')
             m.generate_views()
+            print('All set. Log should be flushed.')
             print('Channeller initialized successfully. Running program.\n' + ('='*50) + '\n')
+            log.flush()
             app.run()
 
         finally:

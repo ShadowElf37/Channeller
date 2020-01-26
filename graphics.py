@@ -1,7 +1,7 @@
 import tkinter as tk
 from PIL import Image, ImageTk, ImageTransform, ImageColor
 import os
-from extras import Path
+from extras import Path, sizemb
 from time import sleep
 from copy import deepcopy
 import traceback

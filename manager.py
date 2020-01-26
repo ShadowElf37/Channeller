@@ -3,7 +3,9 @@ import json
 import pafy
 from tkinter import Canvas
 from extras import *
+from extras import safe_print as print
 from urllib.parse import parse_qs, urlparse
+from multiprocessing.pool import ThreadPool
 
 
 class Manager:
@@ -149,7 +151,7 @@ class Manager:
                         if len(url) > 41:
                             url_short = url[:19] + '...' + url[-19:]
 
-                        loading_notifier.set(f'Resolving \n {url_short} \n ({i}/{l})')
+                        loading_notifier.set(f'[{channel.name}]Resolving \n {url_short} \n ({i}/{l})')
                         self.app.root.update()
                         print('resolving url')
                         vid = None
@@ -179,7 +181,7 @@ class Manager:
                                 except:
                                     continue
 
-                            loading_notifier.set(f'Downloading "{name}" from YouTube ({i}/{l})')
+                            loading_notifier.set(f'[{channel.name}]\nDownloading "{name}" from YouTube ({i}/{l})')
                             self.app.root.update()
                             print('downloading!')
                             print(vid)
@@ -200,7 +202,7 @@ class Manager:
 
                     # Handles general files, as well as the downloaded YouTube audio
                     name = track.get('name', track['file'])
-                    loading_notifier.set(f'Loading {name} ({i}/{l})')
+                    loading_notifier.set(f'[{channel.name}]\nLoading {name} ({i}/{l})')
                     self.app.root.update()
 
                     # Generate track and queue it
@@ -212,7 +214,7 @@ class Manager:
                         os.remove(cache_fp)
 
                 # Fix up autofollows and at_times
-                loading_notifier.set('Rendering autofollows...')
+                loading_notifier.set(f'[{channel.name}]\nRendering autofollows...')
                 self.app.root.update()
 
                 tracks_to_remove = []
@@ -236,11 +238,20 @@ class Manager:
                     track_list.remove(track)
 
                 # Finally queue the fully resolved tracks
+                print(f'Queueing tracks for channel "{channel.name}"')
                 l = len(track_list)
-                for i, t in enumerate(track_list):
-                    loading_notifier.set(f'Spawning children... ({i+1}/{l})')
-                    self.app.root.update()
-                    channel.queue(t)
+
+                loading_notifier.set(f'[{channel.name}]\nSpawning {l} children...')
+                self.app.root.update()
+
+                # Spawning all the processes at the same time is much faster
+                spawner = ThreadPool(processes=l)
+                spawner.map(channel.queue, track_list)
+                #for i, t in enumerate(track_list):
+                #    loading_notifier.set(f'Spawning children... ({i+1}/{l})')
+                #    self.app.root.update()
+                #    channel.queue(t)
+                print(f'Finished track queueing for channel "{channel.name}"')
 
         json.dump(urls, open(cache + 'urls.json', 'w'), indent=4)
         print('cached urls')
