@@ -18,6 +18,9 @@ PA = pyaudio.PyAudio()
 class DeviceDisconnected(BaseException):
     pass
 
+def sizemb(*obj):
+    return sum(sys.getsizeof(o) / 1000000 for o in obj)
+
 # Missing pydub feature
 def detect_leading_silence(sound, silence_threshold=-50.0, chunk_size=10):
     '''
@@ -148,8 +151,10 @@ class Channel:
 
         print('initializing track...')
         track.procinit()
-        print('done')
         self.update()
+        print('freeing %.2fMB of copied RAM...' % sizemb(track.track._data))
+        del track.track  # The only place this is used should be in subprocesses, which have already copied the data over... therefore this is wasted RAM, and it is LARGE
+        print('done!')
 
     def goto(self, i, offset=False):
         if i is None:
@@ -281,6 +286,7 @@ class Track:
             self.track = AudioSegment.silent(self.delay[0]) + AudioSegment.silent(self.delay[1])
 
         self.initially_mono = False if self.track.channels > 1 else True
+        self.length = self.track.duration_seconds
 
         mp.freeze_support()
         self.proc = mp.Process(target=self.procloop, args=(self.EXECUTOR_QUEUE, self.STDOUT), daemon=True)
@@ -299,10 +305,6 @@ class Track:
 
     def __repr__(self):
         return f'<Track "{self.name}">'
-
-    @property
-    def length(self):
-        return self.track.duration_seconds
 
     def procinit(self):
         self.proc.start()
