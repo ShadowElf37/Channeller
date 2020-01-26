@@ -14,5 +14,7 @@
   "gain_step": 0.5,
 
   "osc_host_ip": "0.0.0.0",
-  "osc_host_port": 57120
+  "osc_host_port": 57120,
+  
+  "cache_converted_tracks": true
 }

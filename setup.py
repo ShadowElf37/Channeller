@@ -10,7 +10,7 @@ This needs to be renamed manually in lib/
 
 # Dependencies are automatically detected, but it might need fine tuning.
 build_exe_options = {
-    "packages": ["tkinter", "pydub"],
+    "packages": ["tkinter", "pyaudio"],
     "excludes": ["userfunctions"],
     "include_files": ["images/", "logs/", "guide.txt", "ffprobe.exe", "ffmpeg.exe", "yt_cache/", "wave_cache/", "config/", "userfunctions.py"],
     "replace_paths": [ ("Tkinter", "tkinter") ],

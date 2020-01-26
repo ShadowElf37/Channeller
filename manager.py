@@ -1,7 +1,6 @@
 import audio, graphics, views
 import json
 import pafy
-import os
 from tkinter import Canvas
 from extras import *
 from urllib.parse import parse_qs, urlparse
@@ -195,7 +194,7 @@ class Manager:
                         if not track.get('name'):  # Give it a name
                             track['name'] = name + ' (YT)'
 
-                    # not a Track() arg!
+                    # not a Track() arg, and videos should have been downloaded...
                     if 'url' in track:
                         del track['url']
 

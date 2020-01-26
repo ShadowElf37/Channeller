@@ -209,6 +209,7 @@ class Track:
     LOCALS = {}
     EXECUTOR_QUEUE = None
     STDOUT = None
+    CACHE_CONVERTED = True
 
     def __getstate__(self):
         d = self.__dict__.copy()
@@ -254,7 +255,8 @@ class Track:
                     # We didn't find a cached wav so we need to load it; cache a wav copy
                     loaded = AudioSegment.from_file(file)
                     print('GENERATING WAV:', os.path.join(wc, fname+'.wav'))
-                    loaded.export(os.path.join(wc, fname+'.wav'), format='wav')
+                    if self.CACHE_CONVERTED:
+                        loaded.export(os.path.join(wc, fname+'.wav'), format='wav')
             else:
                 # They gave us a wav thank God
                 print('WAV RECEIVED:', file)

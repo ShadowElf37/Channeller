@@ -181,6 +181,8 @@ if __name__ == "__main__":
             app.bind(km[settings['keybind_stop_all']], lambda e: m.stop_all())
             app.bind(km[settings['keybind_cue_go_next']], lambda e: cm.go())
 
+            audio.Track.CACHE_CONVERTED = settings['cache_converted_tracks']
+
             # OSC
             osc_server = osc.Server(host=settings['osc_host_ip'], port=settings['osc_host_port'])
             osc_server.init()
@@ -224,6 +226,6 @@ if __name__ == "__main__":
         # CUE, CHANNEL, TRACK GUIDES
 
         # EASIER WAY TO ADD TRACKS
-        # TRACK/CHANNEL CFG WRITE TOOL todo
+        # TRACK/CHANNEL CFG WRITE TOOL
 
-        # CANVAS TEXT FOR PREV AND NEXT todo
+        # CANVAS TEXT FOR PREV AND NEXT
