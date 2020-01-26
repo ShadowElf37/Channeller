@@ -17,7 +17,7 @@ import ntpath
 from sounddevice import query_devices
 from threading import Thread
 from extras import Path, ProxyManager
-import builtins
+import userfunctions
 import multiprocessing as mp
 import graphics, audio, views, cues, manager, osc
 
@@ -106,7 +106,7 @@ if __name__ == "__main__":
             string = EXECUTOR_QUEUE.get()
             print('Command received from child:', '<'+string+'>')
             try:
-                exec(string, builtins.__dict__, audio.Track.LOCALS)
+                exec(string, userfunctions.__dict__, audio.Track.LOCALS)
             except Exception as e:
                 print('Timed command failed:', e)
 

@@ -160,8 +160,9 @@ Most of them are just the character or name of the key.
 CODE EXECUTION
 ==============
 Because Cues and Timed Commands directly execute Python, they are capable of interacting with the program in whatever way desired, and pretty much anything can be done with them.
-Note that all text printed to the console will be logged. This allows you to, for example, log when a song starts or ends
+Note that all text printed to the console will be logged. This allows you to, for example, log when a song starts or ends.
 
+In addition to everything provided here, user-generated code will be imported from userfunctions.py
 
 Common general items:
     chan(name)   - fetches the Channel object of a certain channel name

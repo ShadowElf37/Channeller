@@ -9,8 +9,13 @@ This needs to be renamed manually in lib/
 """
 
 # Dependencies are automatically detected, but it might need fine tuning.
-build_exe_options = {"packages": ["tkinter", "pydub", "youtube_dl", "pafy", "PIL", "oscpy"],
-                     "include_files": ["images/", "logs/", "guide.txt", "ffprobe.exe", "ffmpeg.exe", "yt_cache/", "wave_cache/", "config/"]}
+build_exe_options = {
+    "packages": ["tkinter", "pydub"],
+    "excludes": ["userfunctions"],
+    "include_files": ["images/", "logs/", "guide.txt", "ffprobe.exe", "ffmpeg.exe", "yt_cache/", "wave_cache/", "config/", "userfunctions.py"],
+    "replace_paths": [ ("Tkinter", "tkinter") ],
+    "silent": True
+}
 os.environ['TCL_LIBRARY'] = r'C:\Users\Key Cohen Office\AppData\Local\Programs\Python\Python38\tcl\tcl8.6'
 os.environ['TK_LIBRARY'] = r'C:\Users\Key Cohen Office\AppData\Local\Programs\Python\Python38\tcl\tk8.6'
 
@@ -22,8 +27,8 @@ if sys.platform == "win32":
 
 setup(
     name="Channeller",
-    version="2.0",
+    version="2.1",
     description="Mr. Fairs\' new audio software. Made by Yovel Key-Cohen '21. QLab is better. SFX is worse.",
     options={"build_exe": build_exe_options},
-    executables=[Executable("main.py", base=base, icon='images/favicon.ico')]
+    executables=[Executable("main.py", base=base, icon='images/favicon.ico', targetName="Channeller.exe")],
 )
