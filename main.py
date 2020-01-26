@@ -2,26 +2,29 @@
 main.py
 All the initialization code is in here, albeit in abstract function-call form.
 All of the audio action happens in audio.Track._play()
+
+DO NOT defined any classes or functions in this file
+If you need to define a class for main.py only, do it in extras.py and import it
+Attempting to define stuff here will result in fatal bugs when run as an executable
 """
 
-from multiprocessing.managers import BaseManager
-class ProxyManager(BaseManager):
-    pass
+import json
+import datetime as dt
+import os, sys
+import tkinter as tk
+from tkinter import filedialog as fd
+import ntpath
+from sounddevice import query_devices
+from threading import Thread
+from extras import Path, ProxyManager
+import builtins
+import multiprocessing as mp
+import graphics, audio, views, cues, manager, osc
+
 
 # mp tries to run this so we're not gonna let it do that
 if __name__ == "__main__":
-    import json
-    import datetime as dt
-    import os, sys
-    import tkinter as tk
-    from tkinter import filedialog as fd
-    import ntpath
-    from sounddevice import query_devices
-    from threading import Thread
-    from extras import Path
-    import builtins
-    import multiprocessing as mp
-    import graphics, audio, views, cues, manager, osc
+    mp.freeze_support()
 
     print('PID', os.getpid())
 
@@ -86,7 +89,7 @@ if __name__ == "__main__":
         pass
 
     if not ready:
-        exit()
+        sys.exit()
 
     print('storing config locations')
     json.dump(data, open(cfolder + 'stored.json', 'w'), indent=4)
@@ -107,8 +110,11 @@ if __name__ == "__main__":
             except Exception as e:
                 print('Timed command failed:', e)
 
-    # Program
-    newlogpath = os.path.join(os.getcwd(), 'logs', dt.datetime.now().strftime('%Y-%m-%d %H.%M.%S %p.log').replace('/', '-').replace(':', ';'))
+    #===============
+    # Begin Program
+    #===============
+
+    newlogpath = os.path.join(os.getcwd(), 'logs', dt.datetime.now().strftime('%Y-%m-%d %H.%M.%S.log').replace('/', '-').replace(':', ';'))
 
     # This mp-manager's sole purpose is to proxy the log file
     ProxyManager.register('open', open)
@@ -134,7 +140,7 @@ if __name__ == "__main__":
             loading_label = tk.Label(app.root, textvar=loading_text, fg='white', bg='#080808')
             loading_label.pack()
 
-            print('we go')
+            print('Channeller launched as', __name__)
             cdat = json.load(open(fchan))
             tdat = json.load(open(ftrack))
             print('loading channels')

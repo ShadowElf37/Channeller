@@ -213,7 +213,7 @@ class Manager:
                         os.remove(cache_fp)
 
                 # Fix up autofollows and at_times
-                loading_notifier.set(f'Rendering autofollows...')
+                loading_notifier.set('Rendering autofollows...')
                 self.app.root.update()
 
                 tracks_to_remove = []
@@ -237,7 +237,10 @@ class Manager:
                     track_list.remove(track)
 
                 # Finally queue the fully resolved tracks
-                for t in track_list:
+                l = len(track_list)
+                for i, t in enumerate(track_list):
+                    loading_notifier.set(f'Spawning children... ({i+1}/{l})')
+                    self.app.root.update()
                     channel.queue(t)
 
         json.dump(urls, open(cache + 'urls.json', 'w'), indent=4)

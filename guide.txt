@@ -1,3 +1,8 @@
+NEED DOCUMENTATION:
+osc, osc.json
+new settings
+device index in channels.json, audio_devices.txt
+
 ==============
 JSON FORMAT
 ==============

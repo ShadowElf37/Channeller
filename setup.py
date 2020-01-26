@@ -2,9 +2,15 @@ import sys
 import os
 from cx_Freeze import setup, Executable
 
+"""
+NOTE:
+For some reason this generates the tkinter library with the name Tkinter, breaking imports.
+This needs to be renamed manually in lib/
+"""
+
 # Dependencies are automatically detected, but it might need fine tuning.
-build_exe_options = {"packages": ["tkinter", "pyaudio"],
-                     "include_files": ["images/", "logs/", "guide.txt", "ffmpeg.exe", "yt_cache/", "wave_cache/", "config/"]}
+build_exe_options = {"packages": ["tkinter", "pydub", "youtube_dl", "pafy", "PIL", "oscpy"],
+                     "include_files": ["images/", "logs/", "guide.txt", "ffprobe.exe", "ffmpeg.exe", "yt_cache/", "wave_cache/", "config/"]}
 os.environ['TCL_LIBRARY'] = r'C:\Users\Key Cohen Office\AppData\Local\Programs\Python\Python38\tcl\tcl8.6'
 os.environ['TK_LIBRARY'] = r'C:\Users\Key Cohen Office\AppData\Local\Programs\Python\Python38\tcl\tk8.6'
 
@@ -16,7 +22,8 @@ if sys.platform == "win32":
 
 setup(
     name="Channeller",
-    version="1.0",
+    version="2.0",
     description="Mr. Fairs\' new audio software. Made by Yovel Key-Cohen '21. QLab is better. SFX is worse.",
     options={"build_exe": build_exe_options},
-    executables=[Executable("main.py", base=base, icon='images/favicon.ico')])
+    executables=[Executable("main.py", base=base, icon='images/favicon.ico')]
+)

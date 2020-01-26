@@ -1,5 +1,11 @@
 from os.path import join
 import os
+from multiprocessing.managers import BaseManager
+
+
+class ProxyManager(BaseManager):
+    pass
+
 
 class Path:
     def __init__(self, *path):

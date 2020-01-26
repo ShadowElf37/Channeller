@@ -6,7 +6,6 @@ from time import sleep
 from pydub import AudioSegment
 from pydub.utils import make_chunks
 from pydub.effects import compress_dynamic_range
-import builtins
 import multiprocessing as mp
 from math import ceil
 import shared
@@ -281,6 +280,7 @@ class Track:
 
         self.initially_mono = False if self.track.channels > 1 else True
 
+        mp.freeze_support()
         self.proc = mp.Process(target=self.procloop, args=(self.EXECUTOR_QUEUE, self.STDOUT), daemon=True)
         self.restart_lock = mp.Lock()
         self.restart_lock.acquire(False) # Prevents from autoplaying at launch
@@ -292,7 +292,7 @@ class Track:
         self.temp_start = shared.Int() # ms
         self.temp_end = shared.Int(self.length*1000)
         self.at_time_queue = []
-        self.queue_index = 0
+        self.queue_index = shared.Int()
         self.old = shared.Bool()  # False until played; False when renewed, to make sure you don't renew it multiple times
 
     def __repr__(self):
@@ -365,7 +365,7 @@ class Track:
     def _renew(self):
         if self.old:
             self.old.set(False)
-            self.queue_index = 0
+            self.queue_index.set(0)
             self.temp_start.set(0)
             self.temp_end.set(int(self.length*1000))
             print('resetting track')
@@ -393,7 +393,7 @@ class Track:
         self.play_time.set(self.temp_start.value)
         # Fetch the nearest queue item by distance to self.temp_start, find it's index, assign to queue_index
         if self.at_time_queue:
-            self.queue_index = sorted([(abs(dat[0]-self.temp_start), i) for i,dat in enumerate(self.at_time_queue)], key=lambda i: i[0])[0][1]
+            self.queue_index.value = sorted([(abs(dat[0]-self.temp_start), i) for i,dat in enumerate(self.at_time_queue)], key=lambda i: i[0])[0][1]
 
     def end_at(self, sec=None):
         self._renew()
@@ -426,7 +426,7 @@ class Track:
             self.playing.set(False)
         if self.paused:
             self.resume()
-        self.play_time.set(0)
+        self.start_at(0)
 
     def _die(self):
         # Track cannot be played anymore once this is called
