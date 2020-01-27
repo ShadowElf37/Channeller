@@ -6,7 +6,7 @@ from extras import *
 from extras import safe_print as print
 from urllib.parse import parse_qs, urlparse
 from multiprocessing.pool import ThreadPool
-
+import multiprocessing as mp
 
 class Manager:
     def __init__(self, app):
@@ -133,6 +133,8 @@ class Manager:
         # loading_notifier is a StringVar, usually, for a loading screen, because loading tracks fresh can take a sec; NonceVar mimics StringVar interface
         cache = Path(self.app.DIR, 'yt_cache')
         urls = json.load(open(cache + 'urls.json'))
+        ntracks = 0
+        tracks_per_channel = {}
 
         for channel in self.channels.values():
             if listing := data.get(channel.name):
@@ -233,25 +235,32 @@ class Manager:
                         tracks_to_remove.append(af_track)
                         # Remove auto'd tracks from the queue since they attach to the parent
 
-                # REMOVE
+                # REMOVE autofollowed etc.
                 for track in tracks_to_remove:
                     track_list.remove(track)
 
-                # Finally queue the fully resolved tracks
-                print(f'Queueing tracks for channel "{channel.name}"')
-                l = len(track_list)
+                # We'll queue in a hot sec
+                tracks_per_channel[channel] = track_list
 
-                loading_notifier.set(f'[{channel.name}]\nSpawning {l} children...')
-                self.app.root.update()
+        ntracks = sum(len(tracks) for tracks in tracks_per_channel.values())
+        ready_barrier = mp.Barrier(ntracks + 1)
+        # We need this Barrier so that main won't proceed with running Channeller until all the tracks are on standby
+        for channel, tracks in tracks_per_channel.items():
+            # Finally queue the fully resolved tracks
+            print(f'Queueing tracks for channel "{channel.name}"')
+            l = len(tracks)
 
-                # Spawning all the processes at the same time is much faster
-                spawner = ThreadPool(processes=l)
-                spawner.map(channel.queue, track_list)
-                #for i, t in enumerate(track_list):
-                #    loading_notifier.set(f'Spawning children... ({i+1}/{l})')
-                #    self.app.root.update()
-                #    channel.queue(t)
-                print(f'Finished track queueing for channel "{channel.name}"')
+            loading_notifier.set(f'[{channel.name}]\nSpawning {l} children...')
+            self.app.root.update()
+
+            # Spawning all the processes at the same time is much faster
+            ThreadPool(processes=l).starmap(channel.queue, zip(tracks, [-1]*l, [ready_barrier]*l))  # passes: track, -1 (default for i=), the barrier so main knows when they're all standing by
+            #for i, t in enumerate(track_list):
+            #    loading_notifier.set(f'Spawning children... ({i+1}/{l})')
+            #    self.app.root.update()
+            #    channel.queue(t)
+            print(f'Finished track queueing for channel "{channel.name}"')
 
         json.dump(urls, open(cache + 'urls.json', 'w'), indent=4)
         print('cached urls')
+        return ready_barrier

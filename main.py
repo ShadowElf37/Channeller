@@ -16,7 +16,7 @@ from tkinter import filedialog as fd
 import ntpath
 from sounddevice import query_devices
 from threading import Thread
-from extras import Path, ProxyManager, sizemb
+from extras import Path, ProxyManager, safe_print as print
 import userfunctions
 import multiprocessing as mp
 import graphics, audio, views, cues, manager, osc
@@ -207,8 +207,11 @@ if __name__ == "__main__":
             EXECUTOR_THREAD.start()
 
             print('loading tracks')
-            m.load_tracks(tdat, loading_text)
+            all_tracks_ready_barrier = m.load_tracks(tdat, loading_text)  # returns our synchronization method
             print('tracks loaded.')
+
+            loading_text.set('Wrapping up...')
+            app.root.update()
 
             loading_label.destroy()
             del loading_label
@@ -217,11 +220,16 @@ if __name__ == "__main__":
             app.resize(700, 340)
             print('creating views')
             m.generate_views()
-            print('All set. Log should be flushed.')
-            print('Channeller initialized successfully. Running program.\n' + ('='*50) + '\n')
+            print('Generation complete. Checking on the children...')
+            all_tracks_ready_barrier.wait()
+            print('Children are ready. Log should be flushed.')
+            print('Channeller initialized successfully.\n' + ('='*50) + '\n')
             log.flush()
             app.run()
 
+        except Exception as e:
+            import traceback
+            print(traceback.format_exc())
         finally:
             log.close()
 

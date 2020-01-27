@@ -123,9 +123,10 @@ class Channel:
         sleep(0.05)  # lets the screen update with the final gain before relinquishing control over the slider
         self.fading = False
 
-    def queue(self, track, i=-1):
+    def queue(self, track, i=-1, _ready_barrier=mp.Barrier(1)):
         # Pass parent
         track.channel = self
+        track._ready_barrier = _ready_barrier  # To synchronize with main thread
 
         # Set mono/stereo
         if not track.initially_mono and self._channel_count == 1:
@@ -150,8 +151,9 @@ class Channel:
         print('initializing %s...' % track)
         track.procinit()
         self.update()
-        print('freeing %.2fMB of copied RAM...' % sizemb(track.track._data))
+        freed = sizemb(track.track._data)
         del track.track  # The only place this is used should be in subprocesses, which have already copied the data over... therefore this is wasted RAM, and it is LARGE
+        print('freed %.2f MB of copied RAM' % freed)
 
     def goto(self, i, offset=False):
         if i is None:
@@ -235,6 +237,9 @@ class Track:
         self.empty = file is None
         self.repeats = repeat
 
+        self._ready_barrier = mp.Barrier(1)  # To synchronize with main
+        # This should be replaced in Channel.queue(), as multiple tracks are usually queued at once, and all of them need to be waited for
+
         # Mods; handled by a manager
         # BOTH SHOULD BE LISTS
         self.auto_follow_mods = autofollow
@@ -315,12 +320,14 @@ class Track:
                          output=True,  # Audio out
                          output_device_index=self.channel.device)
         try:
+            print('%s on standby' % self)
+            self._ready_barrier.wait()  # main should be the last to the barrier, unless we don't care about waiting for it to be ready
             while True:
-                self._renew()
-                print('%s on standby' % self)
                 self.restart_lock.acquire(True)
                 print('playing %s' % self)
                 self._play(stream, exec_queue)
+                self._renew()
+                print('%s on standby' % self)
         finally:
             stream.close()
 
