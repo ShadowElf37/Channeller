@@ -8,6 +8,13 @@ If you need to define a class for main.py only, do it in extras.py and import it
 Attempting to define stuff here will result in fatal bugs when run as an executable
 """
 
+# CUE, CHANNEL, TRACK GUIDES
+
+# EASIER WAY TO ADD TRACKS
+# TRACK/CHANNEL CFG WRITE TOOL
+
+# CANVAS TEXT FOR PREV AND NEXT
+
 import json
 import datetime as dt
 import os, sys
@@ -140,19 +147,19 @@ if __name__ == "__main__":
             loading_label = tk.Label(app.root, textvar=loading_text, fg='white', bg='#080808')
             loading_label.pack()
 
-            print('Channeller launched as', __name__)
+            print('Channeller launched.')
             cdat = json.load(open(fchan))
             tdat = json.load(open(ftrack))
-            print('loading channels')
+            print('Loading channels...')
             m.load_channels(cdat)
 
             cm = cues.CueManager(m)
             cv = views.CueView(app, cm)
 
             loading_text.set('Loading settings...')
-            print('loading cues')
+            print('Loading cues...')
             cm.load_file(fcue)
-            print('loaded.')
+            print('Channels and cues loaded.')
 
             app.bind('MouseWheel', m.scroll)  # windows scroll
             app.bind("Button-4", m.scroll)  # linux scroll 1
@@ -206,9 +213,9 @@ if __name__ == "__main__":
             EXECUTOR_THREAD = Thread(target=execute_commands_loop, daemon=True)
             EXECUTOR_THREAD.start()
 
-            print('loading tracks')
+            print('Loading tracks...')
             all_tracks_ready_barrier = m.load_tracks(tdat, loading_text)  # returns our synchronization method
-            print('tracks loaded.')
+            print('Tracks loaded.')
 
             loading_text.set('Wrapping up...')
             app.root.update()
@@ -218,7 +225,7 @@ if __name__ == "__main__":
             del loading_text
 
             app.resize(700, 340)
-            print('creating views')
+            print('Creating views...')
             m.generate_views()
             print('Generation complete. Checking on the children...')
             all_tracks_ready_barrier.wait()
@@ -232,10 +239,3 @@ if __name__ == "__main__":
             print(traceback.format_exc())
         finally:
             log.close()
-
-        # CUE, CHANNEL, TRACK GUIDES
-
-        # EASIER WAY TO ADD TRACKS
-        # TRACK/CHANNEL CFG WRITE TOOL
-
-        # CANVAS TEXT FOR PREV AND NEXT

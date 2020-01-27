@@ -27,7 +27,7 @@ if sys.platform == "win32":
 
 setup(
     name="Channeller",
-    version="2.1",
+    version="2.2",
     description="Mr. Fairs\' new audio software. Made by Yovel Key-Cohen '21. QLab is better. SFX is worse.",
     options={"build_exe": build_exe_options},
     executables=[Executable("main.py", base=base, icon='images/favicon.ico', targetName="Channeller.exe")],

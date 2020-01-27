@@ -148,12 +148,12 @@ class Channel:
         else:
             self._queue.insert(i, track)
 
-        print('initializing %s...' % track)
+        print('Initializing %s...' % track)
         track.procinit()
         self.update()
         freed = sizemb(track.track._data)
         del track.track  # The only place this is used should be in subprocesses, which have already copied the data over... therefore this is wasted RAM, and it is LARGE
-        print('freed %.2f MB of copied RAM' % freed)
+        print('Freed %.2f MB of copied RAM.' % freed)
 
     def goto(self, i, offset=False):
         if i is None:
@@ -313,7 +313,7 @@ class Track:
 
     def procloop(self, exec_queue, stdout):
         sys.stdout = sys.stderr = stdout
-        print('subprocess for %s started' % self)
+        print('Subprocess for %s started.' % self)
         stream = PA.open(format=PA.get_format_from_width(self.track.sample_width),
                          channels=self.track.channels,
                          rate=self.track.frame_rate,
@@ -321,7 +321,7 @@ class Track:
                          output_device_index=self.channel.device)
         try:
             print('%s on standby' % self)
-            self._ready_barrier.wait()  # main should be the last to the barrier, unless we don't care about waiting for it to be ready
+            self._ready_barrier.wait()  # main should be the last to the barrier, unless we don't care about waiting for proc to be ready
             while True:
                 self.restart_lock.acquire(True)
                 print('playing %s' % self)
