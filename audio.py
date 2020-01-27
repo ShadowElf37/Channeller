@@ -214,6 +214,7 @@ class Track:
     EXECUTOR_QUEUE = None
     STDOUT = None
     CACHE_CONVERTED = True
+    CACHE_DOWNLOADED = True
 
     def __getstate__(self):
         d = self.__dict__.copy()
@@ -262,7 +263,7 @@ class Track:
                     # We didn't find a cached wav so we need to load it; cache a wav copy
                     loaded = AudioSegment.from_file(file)
                     print('GENERATING WAV:', os.path.join(wc, fname+'.wav'))
-                    if self.CACHE_CONVERTED:
+                    if self.CACHE_CONVERTED and 'yt_cache' not in file or self.CACHE_DOWNLOADED and 'yt_cache' in file:
                         loaded.export(os.path.join(wc, fname+'.wav'), format='wav')
             else:
                 # They gave us a wav thank God
@@ -324,7 +325,6 @@ class Track:
             self._ready_barrier.wait()  # main should be the last to the barrier, unless we don't care about waiting for proc to be ready
             while True:
                 self.restart_lock.acquire(True)
-                print('playing %s' % self)
                 self._play(stream, exec_queue)
                 self._renew()
                 print('%s on standby' % self)
@@ -334,6 +334,7 @@ class Track:
     def _play(self, stream: pyaudio.Stream, exec_queue: mp.Queue):
         self.playing.set(True)
         self.old.set(True)
+        print('playing %s' % self)
         for chunk in make_chunks(self.track[self.temp_start:self.temp_end], CHUNK):
             #print('chunked')
             if self.paused:
@@ -366,8 +367,6 @@ class Track:
                     exec_queue.put(s)
                 self.queue_index += 1
             # print(self.play_time)
-        self._renew()
-        #self.play_time.set(0)
         stream.stop_stream()
 
     def _renew(self):
@@ -376,6 +375,7 @@ class Track:
             self.queue_index.set(0)
             self.temp_start.set(0)
             self.temp_end.set(int(self.length*1000))
+            self.play_time.set(0)
             print('resetting track')
             self.playing.set(False)
             self.restart_lock.acquire(False)
@@ -443,9 +443,10 @@ class Track:
         self.proc.join(0.5)
 
     def autofollow(self, track, crossfade=0.1):
-        # track is Track
+        # track is Track but annotation dies :(
         # if you want delay then autofollow an empty track; crossfade 0 is acceptable if you prefer to use fade_out
         self.track = self.track.append(track.track, int(crossfade*1000))
+        self.length += track.track.duration_seconds
 
 
 if __name__ == "__main__":

@@ -188,6 +188,7 @@ if __name__ == "__main__":
             app.bind(km[settings['keybind_stop_all']], lambda e: m.stop_all())
             app.bind(km[settings['keybind_cue_go_next']], lambda e: cm.go())
 
+            audio.Track.CACHE_DOWNLOADED = settings['cache_downloaded_tracks']
             audio.Track.CACHE_CONVERTED = settings['cache_converted_tracks']
 
             # OSC
