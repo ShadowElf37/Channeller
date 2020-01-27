@@ -27,6 +27,7 @@ from extras import Path, ProxyManager, safe_print as print
 import userfunctions
 import multiprocessing as mp
 import graphics, audio, views, cues, manager, osc
+import builtins
 
 
 # mp tries to run this so we're not gonna let it do that
@@ -111,9 +112,9 @@ if __name__ == "__main__":
     def execute_commands_loop():
         while True:
             string = EXECUTOR_QUEUE.get()
-            print('Command received from child:', '<'+string+'>')
+            print('Command received:', '[ '+string+' ]')
             try:
-                exec(string, userfunctions.__dict__, audio.Track.LOCALS)
+                exec(string, {**builtins.__dict__, **userfunctions.__dict__}, audio.Track.LOCALS)
             except Exception as e:
                 print('Timed command failed:', e)
 
@@ -135,7 +136,7 @@ if __name__ == "__main__":
             audio.Track.EXECUTOR_QUEUE = EXECUTOR_QUEUE
 
             app = graphics.App(700, 300, bg='#080808')
-            app.resize(250, 50)
+            app.resize(275, 60)
 
             app.bind('F5', app.toggle_fullscreen)
             app.bind('Alt_L', app.alt_tab)
