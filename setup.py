@@ -2,12 +2,6 @@ import sys
 import os
 from cx_Freeze import setup, Executable
 
-"""
-NOTE:
-For some reason this generates the tkinter library with the name Tkinter, breaking imports.
-This needs to be renamed manually in lib/
-"""
-
 # Dependencies are automatically detected, but it might need fine tuning.
 build_exe_options = {
     "packages": ["tkinter", "pyaudio"],
@@ -27,7 +21,7 @@ if sys.platform == "win32":
 
 setup(
     name="Channeller",
-    version="2.2",
+    version="2.3",
     description="Mr. Fairs\' new audio software. Made by Yovel Key-Cohen '21. QLab is better. SFX is worse.",
     options={"build_exe": build_exe_options},
     executables=[Executable("main.py", base=base, icon='images/favicon.ico', targetName="Channeller.exe")],
