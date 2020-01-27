@@ -111,10 +111,10 @@ if __name__ == "__main__":
     EXECUTOR_QUEUE = mp.Queue()
     def execute_commands_loop():
         while True:
-            string = EXECUTOR_QUEUE.get()
+            string = EXECUTOR_QUEUE.get()  # blocks
             print('Command received:', '[ '+string+' ]')
             try:
-                exec(string, {**builtins.__dict__, **userfunctions.__dict__}, audio.Track.LOCALS)
+                exec(string, {**builtins.__dict__, **userfunctions.__dict__}, cm.locals)
             except Exception as e:
                 print('Timed command failed:', e)
 
@@ -182,6 +182,7 @@ if __name__ == "__main__":
             m.SCROLL = settings['scroll_fraction']
             views.CueView.CUE_OFFSET = cues.CueManager.CUE_OFFSET = settings['cue_number_start']
             views.ChannelView.TRACK_OFFSET = audio.Channel.TRACK_OFFSET = settings['track_number_start']
+            cues.CueManager.SKIP_EMPTY_CUES = settings['skip_empty_cues']
 
             km = json.load(open(cfolder + 'keymap.json'))
             app.bind(km[settings['keybind_last_cue']], lambda e: cm.back())
@@ -201,7 +202,7 @@ if __name__ == "__main__":
                 osc_server.add_client(name, *addr)
 
             # exec locals
-            cm.locals = audio.Track.LOCALS = {
+            cm.locals = {
                 'cues': cm,
                 'manager': m,
                 'app': app,

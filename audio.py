@@ -210,7 +210,6 @@ class Channel:
     go = play_next
 
 class Track:
-    LOCALS = {}
     EXECUTOR_QUEUE = None
     STDOUT = None
     CACHE_CONVERTED = True
@@ -291,7 +290,6 @@ class Track:
         self.initially_mono = False if self.track.channels > 1 else True
         self.length = self.track.duration_seconds
 
-        mp.freeze_support()
         self.proc = mp.Process(target=self.procloop, args=(self.EXECUTOR_QUEUE, self.STDOUT), daemon=True)
         self.restart_lock = mp.Lock()
         self.restart_lock.acquire(False) # Prevents from autoplaying at launch

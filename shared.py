@@ -1,6 +1,6 @@
 """
 I don't like the multiprocessing.Value() interface – it's a little shallow and not very easy to port to
-The abstraction here adds automatic I/O locking, a simpler way to handle the datatypes, and support for most common operations and type conversions
+The abstraction here adds automatic I/O blocking, a simpler way to handle the datatypes, and support for most common operations and type conversions
 Containers and Strings are not supported whatsoever, but new simple primitives can be subclassed at the bottom with relative ease; just find the relevant ctype and copy from above
 
 Basic interface

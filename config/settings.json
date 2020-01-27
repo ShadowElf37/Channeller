@@ -3,6 +3,7 @@
 
   "cue_number_start": 1,
   "track_number_start": 1,
+  "skip_empty_cues": true,
 
   "keybind_next_cue": "right",
   "keybind_last_cue": "left",

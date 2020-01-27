@@ -10,6 +10,7 @@ class Cue:
 
 class CueManager:
     CUE_OFFSET = 0
+    SKIP_EMPTY_CUES = True
     def __init__(self, channel_manager=None):
         self.m = channel_manager
         self.cues: [Cue] = []
@@ -34,16 +35,34 @@ class CueManager:
         if self.check_i(i):
             del self.cues[i]
 
-    def next(self):
-        if self.check_i(self.i + 1):  # i is lagging 1 behind actual cue spot because it started at -1
+    def _next(self):
+        if self.check_i(self.i + 1):
             self.i += 1
             return True
         return False
-    def back(self):
+    def _back(self):
         if self.check_i(self.i - 1):  # Needs to be allowed to go to -1
             self.i -= 1
             return True
         return False
+
+    def next(self):
+        if self.SKIP_EMPTY_CUES:
+            self._next()
+            while not self.cues[self.i].code:
+                if not self._next(): break
+                # This will break as soon as _next() returns False (i.e. we're at the end of the cue list) OR when there's a cue with code in it
+        else:
+            self._next()
+
+    def back(self):
+        if self.SKIP_EMPTY_CUES:
+            self._back()
+            while not self.cues[self.i].code:
+                if not self._back(): break
+                # This will break as soon as _back() returns False (i.e. we're at the front of the cue list) OR when there's a cue with code in it
+        else:
+            self._back()
 
     def goto(self, i, offset=False):
         OFFSET = self.CUE_OFFSET if offset else 0
