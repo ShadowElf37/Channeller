@@ -304,5 +304,5 @@ class CueView:
         i = self.cm.i
         self.prev_label.write(self.cm.get(i - 1).desc[:25])
         self.next_label.write(self.cm.get(i + 1).desc[:25])
-        self.current_label.write('Cue {} - '.format(i+self.CUE_OFFSET) + self.cm.get(i).desc[:36])
-        self.next_cmd.write(self.cm.get(i).code)
+        self.current_label.write('Cue {} - '.format(i+self.CUE_OFFSET) + self.cm.get(i).desc[:28])
+        self.next_cmd.write(self.cm.get(i).code[:74])

@@ -5,8 +5,8 @@ class Cue:
         self.code = code
         self.desc = desc
 
-    def execute(self, **locals):
-        exec(self.code, {**builtins.__dict__, **userfunctions.__dict__}, locals)
+    def execute(self, **locals_):
+        exec(self.code, {**builtins.__dict__, **userfunctions.__dict__}, locals_)
 
 class CueManager:
     CUE_OFFSET = 0
