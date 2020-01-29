@@ -34,105 +34,112 @@ import builtins
 if __name__ == "__main__":
     mp.freeze_support()
 
-    print('PID', os.getpid())
-
-    # FILE SELECTION
-    cfolder = Path(os.getcwd(), 'config')
-    conf = open(cfolder + 'stored.json', 'r+')
-    data = json.load(conf)
-
-    # Write down available audio devices real quick
-    with open(cfolder + 'audio_devices.txt', 'w') as f:
-        f.write(str(query_devices()))
-
-    lfchan = data['last_channel_file'] or cfolder + 'channels.json'
-    lftrack = data['last_track_file'] or cfolder + 'tracks.json'
-    lfcue = data['last_cue_file'] or cfolder + 'cues.cfg'
-
-    def load_cfg(key, sv=None):
-        global data
-        path = fd.askopenfilename(initialdir='.', filetypes=(
-                                            ("Config/JSON files", "*.json;*.cfg"),
-                                            ("All files", "*.*")
-                                                ))
-        if sv:
-            sv.set(ntpath.basename(path))
-        data[key] = path
-
-    root = tk.Tk()
-    root.title('Load Files')
-
-    channel_label = tk.Label(root, text='Channel file:', anchor='e')
-    ch_sv = tk.StringVar(value=ntpath.basename(lfchan))
-    channel_selector = tk.Button(root, textvar=ch_sv, command=lambda: load_cfg('last_channel_file', ch_sv), anchor='w')
-
-    track_label = tk.Label(root, text='Track file:', anchor='e')
-    t_sv = tk.StringVar(value=ntpath.basename(lftrack))
-    track_selector = tk.Button(root, textvar=t_sv, command=lambda: load_cfg('last_track_file', t_sv), anchor='w')
-
-    cue_label = tk.Label(root, text='Cue file:', anchor='e')
-    c_sv = tk.StringVar(value=ntpath.basename(lfcue))
-    cue_selector = tk.Button(root, textvar=c_sv, command=lambda: load_cfg('last_cue_file', c_sv), anchor='w')
-
-    channel_label.grid(row=1, column=1)
-    channel_selector.grid(row=1, column=3)
-    track_label.grid(row=2, column=1)
-    track_selector.grid(row=2, column=3)
-    cue_label.grid(row=3, column=1)
-    cue_selector.grid(row=3, column=3)
-
-    ready = False
-    def r(*args):
-        global ready
-        ready = True
-        root.destroy()
-
-    start = tk.Button(root, text='Start', command=r)
-    start.grid(row=5, column=2)
-    root.bind('<Return>', r)
-
-    try:
-        root.mainloop()
-    except tk.TclError:
-        pass
-
-    if not ready:
-        sys.exit()
-
-    print('storing config locations')
-    json.dump(data, open(cfolder + 'stored.json', 'w'), indent=4)
-    print('done')
-
-    fchan = data['last_channel_file'] or cfolder + 'channels.json'
-    ftrack = data['last_track_file'] or cfolder + 'tracks.json'
-    fcue = data['last_cue_file'] or cfolder + 'cues.cfg'
-
-    # This takes timed commands from the child processes and runs them up here where the manager, etc. can be accessed safely
-    EXECUTOR_QUEUE = mp.Queue()
-    def execute_commands_loop():
-        while True:
-            string = EXECUTOR_QUEUE.get()  # blocks
-            print('Command received:', '[ '+string+' ]')
-            try:
-                exec(string, {**builtins.__dict__, **userfunctions.__dict__}, cm.locals)
-            except Exception as e:
-                print('Timed command failed:', e)
-
-    #===============
-    # Begin Program
-    #===============
-
-    newlogpath = os.path.join(os.getcwd(), 'logs', dt.datetime.now().strftime('%Y-%m-%d %H.%M.%S.log').replace('/', '-').replace(':', ';'))
+    newlogpath = os.path.join(os.getcwd(), 'logs',
+                              dt.datetime.now().strftime('%Y-%m-%d %H.%M.%S.log').replace('/', '-').replace(':', ';'))
 
     # This mp-manager's sole purpose is to proxy the log file
     ProxyManager.register('open', open)
 
     with ProxyManager() as mp_proxy_manager:
         log = mp_proxy_manager.open(newlogpath, 'w+', encoding='utf-8')
+        sys.stdout = sys.stderr = audio.Track.STDOUT = log
         # with statement doesn't work with proxy open(); manual try-finally
         try:
-            sys.stdout = sys.stderr = log
-            audio.Track.STDOUT = log
+            #====================
+            # FILE SELECTION
+            #====================
+            print('PID', os.getpid())
+
+            # FILE SELECTION
+            cfolder = Path(os.getcwd(), 'config')
+            conf = open(cfolder + 'stored.json', 'r+')
+            data = json.load(conf)
+
+            # Write down available audio devices real quick
+            with open(cfolder + 'audio_devices.txt', 'w') as f:
+                f.write(str(query_devices()))
+            print('Fetched audio devices.')
+
+            lfchan = data['last_channel_file'] or cfolder + 'channels.json'
+            lftrack = data['last_track_file'] or cfolder + 'tracks.json'
+            lfcue = data['last_cue_file'] or cfolder + 'cues.cfg'
+
+            def load_cfg(key, sv=None):
+                global data
+                path = fd.askopenfilename(initialdir='.', filetypes=(
+                                                    ("Config/JSON files", "*.json;*.cfg"),
+                                                    ("All files", "*.*")
+                                                        ))
+                if sv:
+                    sv.set(ntpath.basename(path))
+                data[key] = path
+
+            root = tk.Tk()
+            root.title('Load Files')
+
+            channel_label = tk.Label(root, text='Channel file:', anchor='e')
+            ch_sv = tk.StringVar(value=ntpath.basename(lfchan))
+            channel_selector = tk.Button(root, textvar=ch_sv, command=lambda: load_cfg('last_channel_file', ch_sv), anchor='w')
+
+            track_label = tk.Label(root, text='Track file:', anchor='e')
+            t_sv = tk.StringVar(value=ntpath.basename(lftrack))
+            track_selector = tk.Button(root, textvar=t_sv, command=lambda: load_cfg('last_track_file', t_sv), anchor='w')
+
+            cue_label = tk.Label(root, text='Cue file:', anchor='e')
+            c_sv = tk.StringVar(value=ntpath.basename(lfcue))
+            cue_selector = tk.Button(root, textvar=c_sv, command=lambda: load_cfg('last_cue_file', c_sv), anchor='w')
+
+            channel_label.grid(row=1, column=1)
+            channel_selector.grid(row=1, column=3)
+            track_label.grid(row=2, column=1)
+            track_selector.grid(row=2, column=3)
+            cue_label.grid(row=3, column=1)
+            cue_selector.grid(row=3, column=3)
+
+            ready = False
+            def r(*args):
+                global ready
+                ready = True
+                root.destroy()
+
+            start = tk.Button(root, text='Start', command=r)
+            start.grid(row=5, column=2)
+            root.bind('<Return>', r)
+
+            print('Waiting for user...')
+            try:
+                root.mainloop()
+            except tk.TclError:
+                pass
+
+            if not ready:
+                print('User quit?')
+                sys.exit()
+            print('Ready.')
+
+            print('Storing config locations...')
+            json.dump(data, open(cfolder + 'stored.json', 'w'), indent=4)
+
+            fchan = data['last_channel_file'] or cfolder + 'channels.json'
+            ftrack = data['last_track_file'] or cfolder + 'tracks.json'
+            fcue = data['last_cue_file'] or cfolder + 'cues.cfg'
+
+            # This takes timed commands from the child processes and runs them up here where the manager, etc. can be accessed safely
+            EXECUTOR_QUEUE = mp.Queue()
+            def execute_commands_loop():
+                while True:
+                    string = EXECUTOR_QUEUE.get()  # blocks
+                    print('Command received:', '[ '+string+' ]')
+                    try:
+                        exec(string, {**builtins.__dict__, **userfunctions.__dict__}, cm.locals)
+                    except Exception as e:
+                        print('Timed command failed:', e)
+
+
+            #===============
+            # Begin Program
+            #===============
+
             audio.Track.EXECUTOR_QUEUE = EXECUTOR_QUEUE
 
             app = graphics.App(700, 300, bg='#080808')
@@ -232,13 +239,13 @@ if __name__ == "__main__":
             m.generate_views()
             print('Generation complete. Checking on the children...')
             all_tracks_ready_barrier.wait()
-            print('Children are ready. Log should be flushed.')
+            print('All children standing by. Log should be flushed.')
             print('Channeller initialized successfully.\n' + ('='*50) + '\n')
             log.flush()
             app.run()
 
         except Exception as e:
-            import traceback
-            print(traceback.format_exc())
+            from traceback import format_exc
+            print(format_exc())
         finally:
             log.close()

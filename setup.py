@@ -7,7 +7,6 @@ build_exe_options = {
     "packages": ["tkinter", "pyaudio"],
     "excludes": ["userfunctions", "Tkinter"],
     "include_files": ["images/", "logs/", "guide.txt", "ffprobe.exe", "ffmpeg.exe", "yt_cache/", "wave_cache/", "config/", "userfunctions.py"],
-    "replace_paths": [ ("Tkinter", "tkinter") ],
     "silent": True
 }
 os.environ['TCL_LIBRARY'] = r'C:\Users\Key Cohen Office\AppData\Local\Programs\Python\Python38\tcl\tcl8.6'
@@ -21,7 +20,7 @@ if sys.platform == "win32":
 
 setup(
     name="Channeller",
-    version="2.3",
+    version="2.32",
     description="Mr. Fairs\' new audio software. Made by Yovel Key-Cohen '21. QLab is better. SFX is worse.",
     options={"build_exe": build_exe_options},
     executables=[Executable("main.py", base=base, icon='images/favicon.ico', targetName="Channeller.exe")],
