@@ -30,12 +30,13 @@ class Server:
     def get_client(self, name):
         return self.clients.get(name)
 
-    def send_msg(self, client_name, address, *msg):
-        return self.osc.send_message(b(address), b(msg), *self.clients[client_name])
-    send = send_msg
+    def send_msg(self, client_name, method, *msg):
+        return self.osc.send_message(b(method), b(msg), *self.clients[client_name])
+    def send(self, client_name, method, *msg):
+        self.send_msg(client_name, method, *msg)
 
     def _send_msg_obj(self, client_name, msg):
-        return self.send_msg(client_name, msg.addr, *msg.contents)
+        return self.send_msg(client_name, msg.method, *msg.contents)
     def _send_bundle_obj(self, client_name, bundle):
         return self.osc.send_bundle(bundle.unwrap(), *self.clients[client_name])
 
@@ -49,8 +50,8 @@ class Server:
 
 
 class Message:
-    def __init__(self, addr: str, *contents: [str]):
-        self.addr = addr
+    def __init__(self, method: str, *contents: [str]):
+        self.method = method
         self.contents = contents
 
 class Bundle:
@@ -60,7 +61,7 @@ class Bundle:
         self.msgs.append(msg)
 
     def unwrap(self):
-        return [(m.addr, m.contents) for m in self.msgs]
+        return [(m.method, m.contents) for m in self.msgs]
 
 
 if __name__ == "__main__":

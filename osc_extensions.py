@@ -1,0 +1,3 @@
+class Extensions:
+    class EOSIonXe:
+        ...
