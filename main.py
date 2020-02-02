@@ -8,16 +8,14 @@ If you need to define a class for main.py only, do it in extras.py and import it
 Attempting to define stuff here will result in fatal bugs when run as an executable
 """
 
-# CUE, CHANNEL, TRACK GUIDES
-
 # EASIER WAY TO ADD TRACKS
 # TRACK/CHANNEL CFG WRITE TOOL
 
 # CANVAS TEXT FOR PREV AND NEXT
 
+import sys, os
 import json
 import datetime as dt
-import os, sys
 import tkinter as tk
 from tkinter import filedialog as fd
 import ntpath
@@ -220,9 +218,9 @@ if __name__ == "__main__":
                 'OSC': osc_server
             }
             import channeller
-            channeller._update_objects(cm.locals)
+            channeller._import(cm.locals)
             import userfunctions
-            print('userfunction.py interface set cleanly')
+            print('Interfaced with userfunctions.py!')
 
             EXECUTOR_THREAD = Thread(target=execute_commands_loop, daemon=True)
             EXECUTOR_THREAD.start()

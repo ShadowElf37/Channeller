@@ -13,7 +13,6 @@ channeller._update_objects(cm.locals)
 class _TempObject:
     objects = []
     ignore = object()
-    callback = object()
 
     def __init__(self, name):
         self.name = name
@@ -67,7 +66,7 @@ class _TempObject:
         return ref
 
 
-def _update_objects(dictionary):
+def _import(dictionary):
     for obj in _TempObject.objects:
         obj.notify(dictionary.get(obj.name, _TempObject.ignore))
     globals().update(dictionary)

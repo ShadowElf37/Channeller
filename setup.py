@@ -2,6 +2,7 @@ import sys
 import os
 from cx_Freeze import setup, Executable
 
+print('Compiling channeller.py')
 import py_compile
 py_compile.compile('channeller.py', 'channeller.pyc')
 
@@ -9,8 +10,9 @@ py_compile.compile('channeller.py', 'channeller.pyc')
 build_exe_options = {
     "packages": ["tkinter", "pyaudio"],
     "excludes": ["userfunctions", "Tkinter", "channeller", "extensions", "numpy", "scipy", "curses", "psutil"],
-    "include_files": ["images/", "logs/", "guide.txt", "ffprobe.exe", "ffmpeg.exe", "yt_cache/", "wave_cache/", "config/", "userfunctions.py", "extensions.py", "channeller.pyc"],
-    "silent": True
+    "include_files": ["images/", "logs/", "guide.txt", "ffmpeg.exe", "ffprobe.exe", "yt_cache/", "wave_cache/", "config/", "userfunctions.py", "extensions.py", "channeller.pyc"],
+    "silent": True,
+    "path": sys.path,
 }
 os.environ['TCL_LIBRARY'] = r'C:\Users\Key Cohen Office\AppData\Local\Programs\Python\Python38\tcl\tcl8.6'
 os.environ['TK_LIBRARY'] = r'C:\Users\Key Cohen Office\AppData\Local\Programs\Python\Python38\tcl\tk8.6'

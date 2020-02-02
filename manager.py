@@ -133,7 +133,6 @@ class Manager:
         # loading_notifier is a StringVar, usually, for a loading screen, because loading tracks fresh can take a sec; NonceVar mimics StringVar interface
         cache = Path(self.app.DIR, 'yt_cache')
         urls = json.load(open(cache + 'urls.json'))
-        ntracks = 0
         tracks_per_channel = {}
 
         for channel in self.channels.values():
@@ -155,7 +154,7 @@ class Manager:
 
                         loading_notifier.set(f'[{channel.name}] Resolving \n {url_short} \n ({i}/{l})')
                         self.app.root.update()
-                        print('resolving url')
+                        print('Resolving', url)
                         vid = None
                         if video_id in urls:  # We keep urls stored with their video titles in case we have them; cuts the 2 seconds required for pafy.new()
                             name = urls[video_id]
@@ -174,7 +173,7 @@ class Manager:
                             # If you clear urls.json but still have the wav hanging around this will save you,
                             # otherwise it's a redundant check
                             track['file'] = wave_path
-                            print('not downloading')
+                            print('Not downloading, found a cached copy.')
 
                         else:  # But if not cached, gotta download!
                             if vid is None:
@@ -185,10 +184,9 @@ class Manager:
 
                             loading_notifier.set(f'[{channel.name}]\nDownloading "{name}" from YouTube ({i}/{l})')
                             self.app.root.update()
-                            print('downloading!')
+                            print('Downloading audio...')
                             print(vid)
                             aud = vid.getbestaudio()  # mod this
-                            print('1')
                             # download it to the yt_cache
                             cache_fp = cache + (vid.title + '.' + aud.extension)
                             aud.download(cache_fp)
@@ -216,6 +214,7 @@ class Manager:
                         os.remove(cache_fp)
 
                 # Fix up autofollows and at_times
+                print('Making autofollows...')
                 loading_notifier.set(f'[{channel.name}]\nRendering autofollows...')
                 self.app.root.update()
 
@@ -265,5 +264,5 @@ class Manager:
             print(f'Finished track queueing for channel "{channel.name}"')
 
         json.dump(urls, open(cache + 'urls.json', 'w'), indent=4)
-        print('cached urls')
+        print('All URLs cached.')
         return ready_barrier
