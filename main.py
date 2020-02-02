@@ -24,7 +24,6 @@ import ntpath
 from sounddevice import query_devices
 from threading import Thread
 from extras import Path, ProxyManager, safe_print as print
-import userfunctions
 import multiprocessing as mp
 import graphics, audio, views, cues, manager, osc
 import builtins
@@ -220,6 +219,11 @@ if __name__ == "__main__":
                 'osc': osc_server,
                 'OSC': osc_server
             }
+            import channeller
+            channeller._update_objects(cm.locals)
+            import userfunctions
+            print('userfunction.py interface set cleanly')
+
             EXECUTOR_THREAD = Thread(target=execute_commands_loop, daemon=True)
             EXECUTOR_THREAD.start()
 

@@ -1,4 +1,4 @@
-import userfunctions, builtins
+import builtins
 
 class Cue:
     def __init__(self, code, desc):
@@ -6,6 +6,7 @@ class Cue:
         self.desc = desc
 
     def execute(self, **locals_):
+        import userfunctions
         exec(self.code, {**builtins.__dict__, **userfunctions.__dict__}, locals_)
 
 class CueManager:

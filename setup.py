@@ -2,11 +2,14 @@ import sys
 import os
 from cx_Freeze import setup, Executable
 
+import py_compile
+py_compile.compile('channeller.py', 'channeller.pyc')
+
 # Dependencies are automatically detected, but it might need fine tuning.
 build_exe_options = {
     "packages": ["tkinter", "pyaudio"],
-    "excludes": ["userfunctions", "Tkinter"],
-    "include_files": ["images/", "logs/", "guide.txt", "ffprobe.exe", "ffmpeg.exe", "yt_cache/", "wave_cache/", "config/", "userfunctions.py"],
+    "excludes": ["userfunctions", "Tkinter", "channeller", "extensions", "numpy", "scipy", "curses", "psutil"],
+    "include_files": ["images/", "logs/", "guide.txt", "ffprobe.exe", "ffmpeg.exe", "yt_cache/", "wave_cache/", "config/", "userfunctions.py", "extensions.py", "channeller.pyc"],
     "silent": True
 }
 os.environ['TCL_LIBRARY'] = r'C:\Users\Key Cohen Office\AppData\Local\Programs\Python\Python38\tcl\tcl8.6'
