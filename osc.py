@@ -6,7 +6,9 @@ def b(obj):
     # converts strings and lists to bytes; recursive too!
     if type(obj) in (list, tuple):
         return type(obj)([b(s) for s in obj])
-    return bytes(obj, ENC)
+    elif type(obj) is str:
+        return bytes(obj, ENC)
+    return obj
 
 class Server:
     def __init__(self, host='0.0.0.0', port=57120, encoding='', timeout=0.01):
@@ -31,7 +33,10 @@ class Server:
         return self.clients.get(name)
 
     def send_msg(self, client_name, method, *msg):
-        return self.osc.send_message(b(method), b(msg), *self.clients[client_name])
+        try:
+            return self.osc.send_message(b(method), b(msg), *self.clients[client_name])
+        except RuntimeError:
+            raise ConnectionError('init() needs to be called on OSC server')
     def send(self, client_name, method, *msg):
         self.send_msg(client_name, method, *msg)
 

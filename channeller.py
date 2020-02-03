@@ -73,7 +73,7 @@ def _import(dictionary):
 
 
 def __getattr__(name):
-    if name not in globals().keys():
+    if not (v := globals().get(name)):
         _TempObject.objects.append(obj := _TempObject(name))
         return obj
-    return globals()[name]
+    return v
