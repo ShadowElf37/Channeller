@@ -18,8 +18,13 @@ class OSCDevice:
 
 
 class EOSIonXe(OSCDevice):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        server.bind_handler('/eos/out/ping', lambda: print(f'{self.name} pong'))
+
     def send_cmd(self, string: str, clear_console=False):
         self._send('/eos/%scmd' % ('new' if clear_console else ''), string.title())
+    send=send_cmd
 
     def cue(self, i, list_no=1):
         return self.interface(fire=(go := f'/eos/cue/{list_no}/{i}/fire'),
@@ -61,6 +66,10 @@ class EOSIonXe(OSCDevice):
                               min=pref + '/min',
                               max=pref + '/max',
                               at=(pref,))
+
+    def ping(self):
+        self._send('/eos/ping')
+        print(f'{self.name}: ping')
 
 if __name__ == "__main__":
     import osc
