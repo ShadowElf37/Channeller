@@ -7,6 +7,11 @@ from extras import safe_print as print
 from urllib.parse import parse_qs, urlparse
 from multiprocessing.pool import ThreadPool
 import multiprocessing as mp
+import re
+
+def sanitize(filename):
+    return re.sub('[\\\/:*?<>|]', '-', filename)
+
 
 class Manager:
     def __init__(self, app):
@@ -146,7 +151,7 @@ class Manager:
 
                     if YT:  # YOUTUBE DOWNLOADS WORK AHAHAHAHAHA IM SO HAPPY
                         url = track['url'].replace('music.', '')
-                        video_id = parse_qs(urlparse(url).query)['v'][0]
+                        video_id = parse_qs(urlparse(url).query).get('v', (url,))[0]  # this can take youtube music, youtube, youtu.be, http://, and even just the video code that comes after v=
 
                         url_short = url  # Shortened for visual appeal in the loading screen
                         if len(url) > 41:
@@ -163,8 +168,7 @@ class Manager:
                                 vid = pafy.new(video_id)
                             except:
                                 continue
-                            name = vid.title
-                            urls[video_id] = name
+                            urls[video_id] = name = sanitize(vid.title)
 
                         wave_path = Path(self.app.DIR, 'wave_cache', name+'.wav').path
 
@@ -188,7 +192,7 @@ class Manager:
                             print(vid)
                             aud = vid.getbestaudio()  # mod this
                             # download it to the yt_cache
-                            cache_fp = cache + (vid.title + '.' + aud.extension)
+                            cache_fp = cache + (sanitize(vid.title) + '.' + aud.extension)
                             aud.download(cache_fp)
                             print('DOWNLOADED:', cache_fp)
                             track['file'] = cache_fp

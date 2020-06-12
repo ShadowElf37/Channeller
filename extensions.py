@@ -20,7 +20,7 @@ class OSCDevice:
 class EOSIonXe(OSCDevice):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        server.bind_handler('/eos/out/ping', lambda: print(f'{self.name} pong'))
+        self.server.bind_handler('/eos/out/ping', lambda: print(f'{self.name} pong'))
 
     def send_cmd(self, string: str, clear_console=False):
         self._send('/eos/%scmd' % ('new' if clear_console else ''), string.title())

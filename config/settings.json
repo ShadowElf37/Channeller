@@ -14,6 +14,8 @@
   "gain_floor": -99.9,
   "gain_step": 0.5,
 
+  "chunk_size": 50,
+
   "osc_host_ip": "0.0.0.0",
   "osc_host_port": 57120,
 

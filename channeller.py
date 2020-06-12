@@ -4,6 +4,7 @@ Usage:
  - userfunctions.py -
 import channeller
 osc = channeller.osc
+...
 
  - main.py -
 import channeller

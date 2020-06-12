@@ -4,6 +4,7 @@ import cues
 import tkinter as tk
 
 def hms(sec):
+    # probably stolen from StackOverflow
     sec = int(sec)
     m, s = divmod(sec, 60)
     h, m = divmod(m, 60)

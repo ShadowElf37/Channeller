@@ -3,9 +3,9 @@ main.py
 All the initialization code is in here, albeit in abstract function-call form.
 All of the audio action happens in audio.Track._play()
 
-DO NOT defined any classes or functions in this file
+DO NOT define any classes or functions in this file
 If you need to define a class for main.py only, do it in extras.py and import it
-Attempting to define stuff here will result in fatal bugs when run as an executable
+Attempting to define useful stuff here will result in fatal bugs when run as an executable
 """
 
 # EASIER WAY TO ADD TRACKS
@@ -196,6 +196,8 @@ if __name__ == "__main__":
 
             audio.Track.CACHE_DOWNLOADED = settings['cache_downloaded_tracks']
             audio.Track.CACHE_CONVERTED = settings['cache_converted_tracks']
+
+            audio.CHUNK = settings['chunk_size']
 
             # OSC
             osc_server = osc.Server(host=settings['osc_host_ip'], port=settings['osc_host_port'])

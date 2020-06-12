@@ -11,15 +11,17 @@ from math import ceil
 from extras import sizemb, safe_print as print
 import shared
 import sys
+from queue import Queue
 
-CHUNK = 15  # 50ms chunks for processing – if it's too low then the overhead gets larger than the chunks are!
+CHUNK = 50  # 50ms chunks for processing – if it's too low then the overhead gets larger than the chunks are!
 DIR = os.getcwd()
 
 PA = pyaudio.PyAudio()
 class DeviceDisconnected(BaseException):
     pass
 
-# Missing pydub feature
+# Missing pydub feature - taken from the pydub github
+# https://github.com/jiaaro/pydub
 def detect_leading_silence(sound, silence_threshold=-50.0, chunk_size=10):
     '''
     sound is a pydub.AudioSegment
@@ -35,6 +37,7 @@ def detect_leading_silence(sound, silence_threshold=-50.0, chunk_size=10):
     return trim_ms
 
 # Uses a generator instead of a list because when it's a list mp breaks horrendously
+# Code modified from the pydub source on github
 def make_chunks(audio_segment: AudioSegment, chunk_length):
     """
     Breaks an AudioSegment into chunks that are <chunk_length> milliseconds
@@ -318,18 +321,31 @@ class Track:
                          rate=self.track.frame_rate,
                          output=True,  # Audio out
                          output_device_index=self.channel.device)
+
+        stream_queue = Queue(1)
+        self.player_thread = Thread(target=self._write_to_stream, args=(stream, stream_queue), daemon=True)
+        self.player_thread.start()
         try:
             print('%s on standby' % self)
             self._ready_barrier.wait()  # main should be the last to the barrier, unless we don't care about waiting for proc to be ready
             while True:
                 self.restart_lock.acquire(True)
-                self._play(stream, exec_queue)
+                self._play(stream, stream_queue, exec_queue)
                 self._renew()
                 print('%s on standby' % self)
         finally:
+            stream_queue.put(None)
             stream.close()
 
-    def _play(self, stream: pyaudio.Stream, exec_queue: mp.Queue):
+    def _write_to_stream(self, stream: pyaudio.Stream, stream_queue: Queue):
+        while True:
+            data = stream_queue.get()
+            if data is None:
+                break
+            stream.write(data)
+            stream_queue.task_done()
+
+    def _play(self, stream: pyaudio.Stream, stream_queue: Queue, exec_queue: mp.Queue):
         self.playing.set(True)
         self.old.set(True)
         print('playing %s' % self)
@@ -352,16 +368,18 @@ class Track:
             try:
                 data = (chunk + self.channel.gain + self.gain)._data  # Live gain editing is possible because it's applied to each 50 ms chunk in real time
                 #print('new segment created')
-                stream.write(data)
+                stream_queue.join() # this should block until _write_to_stream() is done processing
+                stream_queue.put(data)  # this will also block if there's more than 1 item in the queue, but that's impossible?
+                #stream.write(data)
             except OSError:
                 # Couldn't write to host device; maybe it unplugged?
                 raise DeviceDisconnected
 
             #print('wrote!')
             self.play_time += CHUNK
-            if self.queue_index != len(self.at_time_queue) and abs(self.at_time_queue[self.queue_index][0] - self.play_time) < CHUNK:
+            if self.queue_index != len(self.at_time_queue) and abs(self.at_time_queue[self.queue_index.get()][0] - self.play_time) < CHUNK:
                 # If within a CHUNK of the execution time
-                for s in self.at_time_queue[self.queue_index][1]:
+                for s in self.at_time_queue[self.queue_index.get()][1]:
                     exec_queue.put(s)
                 self.queue_index += 1
             # print(self.play_time)
