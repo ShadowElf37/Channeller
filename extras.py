@@ -53,5 +53,6 @@ def get_lines_of_code(start_path='.', exts=('js', 'py', 'html', 'css')):
                     total_lines += sum([1 for l in f.readlines() if l.strip()])
     return total_lines
 
+
 if __name__ == "__main__":
     print('Counted %s lines of code.' % get_lines_of_code(exts=['py']))
