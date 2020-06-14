@@ -12,6 +12,7 @@ from extras import sizemb, safe_print as print
 import shared
 import sys
 from queue import Queue
+import streaming
 
 CHUNK = 50  # 50ms chunks for processing – if it's too low then the overhead gets larger than the chunks are!
 DIR = os.getcwd()
@@ -307,6 +308,8 @@ class Track:
         self.queue_index = shared.Int()
         self.old = shared.Bool()  # False until played; False when renewed, to make sure you don't renew it multiple times
 
+        self.streaming = shared.Bool(True)
+
     def __repr__(self):
         return f'<Track "{self.name}">'
 
@@ -322,6 +325,11 @@ class Track:
                          output=True,  # Audio out
                          output_device_index=self.channel.device)
 
+        data_stream = None
+        if self.streaming:
+            data_stream = streaming.AudioStream(self.track)
+            data_stream.load_ms(0, 2000)
+
         stream_queue = Queue(1)
         self.player_thread = Thread(target=self._write_to_stream, args=(stream, stream_queue), daemon=True)
         self.player_thread.start()
@@ -330,12 +338,13 @@ class Track:
             self._ready_barrier.wait()  # main should be the last to the barrier, unless we don't care about waiting for proc to be ready
             while True:
                 self.restart_lock.acquire(True)
-                self._play(stream, stream_queue, exec_queue)
+                self._play(stream, stream_queue, exec_queue, data_stream)
                 self._renew()
                 print('%s on standby' % self)
         finally:
             stream_queue.put(None)
             stream.close()
+            os.remove(data_stream.fp)
 
     def _write_to_stream(self, stream: pyaudio.Stream, stream_queue: Queue):
         while True:
@@ -345,11 +354,19 @@ class Track:
             stream.write(data)
             stream_queue.task_done()
 
-    def _play(self, stream: pyaudio.Stream, stream_queue: Queue, exec_queue: mp.Queue):
+    def _play(self, stream: pyaudio.Stream, stream_queue: Queue, exec_queue: mp.Queue, data_stream: streaming.AudioStream=None):
         self.playing.set(True)
         self.old.set(True)
         print('playing %s' % self)
-        for chunk in make_chunks(self.track[self.temp_start:self.temp_end], CHUNK):
+
+        if data_stream:
+            data_stream.seek_chunk(data_stream.chunk_number(self.temp_start//1000.0))
+            data_stream.set_eof_at_byte(data_stream.chunk_number(self.temp_end//1000.0) * data_stream.chunk)
+            chunks = streaming.audio_stream_blocker(data_stream, CHUNK)
+        else:
+            chunks = make_chunks(self.track[self.temp_start:self.temp_end], CHUNK)
+
+        for chunk in chunks:
             #print('chunked')
             if self.paused:
                 print('pause_lock acquired')

@@ -1,5 +1,9 @@
 from math import ceil
 from os.path import getsize
+from pydub import AudioSegment
+from io import SEEK_SET, SEEK_CUR
+import shared
+import uuid
 
 class BinaryStream:
     def __init__(self, fp, chunk=1):
@@ -31,7 +35,6 @@ class BinaryStream:
         print(f'FILE STREAM: Type {t} cache access on', interval)
 
     def skip_bytes(self, n):
-        from io import SEEK_CUR
         self.f.seek(n, SEEK_CUR)
     def skip(self, chunks=1):
         self.skip_bytes(self.chunk*chunks)
@@ -41,25 +44,27 @@ class BinaryStream:
             return b''
         p1, p2 = self.pos, self.pos+n
         for interval in self.cache.keys():
+            dp1 = p1 - interval[0]
+            dp2 = p2 - interval[1]
             if p1 >= interval[0] and p2 <= interval[1]:  # desired is within or equal to cached data
                 self.cache_notify(1, interval)
-                data = self.cache[interval][p1-interval[0]:p2-interval[1] or None]
+                data = self.cache[interval][dp1:dp2 or None]
                 self.f.seek(p2)
             elif p1 < interval[0] and p2 <= interval[1] and p2 > interval[0]:  # desired overlaps with first border of cached data
                 self.cache_notify(2, interval)
-                data = self.read_bytes(interval[0]-p1) + self.cache[interval][:p2-interval[1] or None]
+                data = self.read_bytes(-dp1) + self.cache[interval][:dp2 or None]
                 self.f.seek(p2)
             elif p1 >= interval[0] and p1 < interval[1] and p2 > interval[1]: # desired overlaps with second border of cached data
                 self.cache_notify(3, interval)
-                data = self.cache[interval][p1-interval[0]:]
+                data = self.cache[interval][dp1:]
                 self.skip_bytes(len(data))
-                data += self.read_bytes(p2-interval[1])
+                data += self.read_bytes(dp2)
             elif p1 < interval[0] and p2 > interval[1]: # cached is within desired
                 self.cache_notify(4, interval)
                 c = self.cache[interval]
-                data = self.read_bytes(interval[0]-p1) + c
+                data = self.read_bytes(-dp1) + c
                 self.skip_bytes(len(c))
-                data += self.read_bytes(p2-interval[1])
+                data += self.read_bytes(dp2)
             else:
                 continue
 
@@ -72,7 +77,7 @@ class BinaryStream:
     def read_all(self, from_=0, to=-1):
         old_pos = self.pos
         self.f.seek(from_)
-        data = self.f.read(to - from_)
+        data = self.read_bytes(to - from_)
         self.f.seek(old_pos)
         return data
     def read_all_chunks(self, from_=0, to=-1):
@@ -80,6 +85,59 @@ class BinaryStream:
 
     def close(self):
         self.f.close()
+
+
+class AudioStream(BinaryStream):
+    def __init__(self, audio: AudioSegment):
+        self.audio = audio
+        self.UUID = uuid.uuid4()
+        self.fp = '_CHANNELLER_DISKSTREAM_%s' % self.UUID
+        self.f = open(self.fp, 'wb+')
+        self.f.write(self.audio.raw_data)
+        self.f.flush()
+        self.size = self.eof = len(self.audio.raw_data)
+        self.chunk = self.audio.frame_width  # frame
+        self.f.seek(0)
+        self.cache: {(int, int): bytes} = dict()  # (start, end): data
+
+        #self.frame_rate = self.audio.frame_rate
+
+        del self.audio._data
+
+    def chunk_number(self, ms):
+        return int(ms * self.audio.frame_rate / 1000.0)
+
+    def read_bytes(self, n):
+        return super().read_bytes(n)
+
+    def read_ms(self, start, end=None):
+        start_chunk = self.chunk_number(start)
+        end_chunk = self.chunk_number(end)
+        return self.audio._spawn(self.read_all_chunks(start_chunk, end_chunk))
+    def load_ms(self, start, end=None):
+        start_byte = self.chunk_number(start) * self.chunk
+        end_byte = self.chunk_number(end) * self.chunk
+        return self.load(int(start_byte), int(end_byte))
+
+    def read_as_audio(self, ms):
+        return self.audio._spawn(self.read(ms))
+
+    def seek_chunk(self, n):
+        print(n, self.chunk, n*self.chunk)
+        self.f.seek(n*self.chunk, SEEK_SET)
+
+    def set_eof_at_byte(self, n=None):
+        if n is None or n < 0:
+            self.eof = self.size
+        else:
+            self.eof = n
+
+
+def audio_stream_blocker(audio_stream: AudioStream, ms_per_block):
+    for block in range(ceil(audio_stream.eof / audio_stream.chunk / ms_per_block)):
+        yield audio_stream.read_as_audio(ms_per_block)
+
+
 
 if __name__ == "__main__":
     f = BinaryStream('CHANGELOG', chunk=3)
