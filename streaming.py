@@ -1,8 +1,9 @@
 from math import ceil
-from os.path import getsize
+from os.path import getsize, exists, join
 from pydub import AudioSegment
 from io import SEEK_SET, SEEK_CUR
 import shared
+import sys
 import uuid
 
 class BinaryStream:
@@ -47,20 +48,20 @@ class BinaryStream:
             dp1 = p1 - interval[0]
             dp2 = p2 - interval[1]
             if p1 >= interval[0] and p2 <= interval[1]:  # desired is within or equal to cached data
-                self.cache_notify(1, interval)
+                #self.cache_notify(1, interval)
                 data = self.cache[interval][dp1:dp2 or None]
                 self.f.seek(p2)
             elif p1 < interval[0] and p2 <= interval[1] and p2 > interval[0]:  # desired overlaps with first border of cached data
-                self.cache_notify(2, interval)
+                #self.cache_notify(2, interval)
                 data = self.read_bytes(-dp1) + self.cache[interval][:dp2 or None]
                 self.f.seek(p2)
             elif p1 >= interval[0] and p1 < interval[1] and p2 > interval[1]: # desired overlaps with second border of cached data
-                self.cache_notify(3, interval)
+                #self.cache_notify(3, interval)
                 data = self.cache[interval][dp1:]
                 self.skip_bytes(len(data))
                 data += self.read_bytes(dp2)
             elif p1 < interval[0] and p2 > interval[1]: # cached is within desired
-                self.cache_notify(4, interval)
+                #self.cache_notify(4, interval)
                 c = self.cache[interval]
                 data = self.read_bytes(-dp1) + c
                 self.skip_bytes(len(c))
@@ -88,21 +89,26 @@ class BinaryStream:
 
 
 class AudioStream(BinaryStream):
-    def __init__(self, audio: AudioSegment):
+    def __init__(self, audio: AudioSegment, trackname: str):
         self.audio = audio
-        self.UUID = uuid.uuid4()
-        self.fp = '_CHANNELLER_DISKSTREAM_%s' % self.UUID
-        self.f = open(self.fp, 'wb+')
-        self.f.write(self.audio.raw_data)
-        self.f.flush()
-        self.size = self.eof = len(self.audio.raw_data)
+        self.UUID = uuid.uuid5(uuid.NAMESPACE_DNS, 'stream.%s' % trackname)
+        self.fp = join('stream_cache', '_CHANNELLER_DISKSTREAM_%s' % self.UUID)
+        if exists(self.fp):
+            self.f = open(self.fp, 'rb')
+        else:
+            self.f = open(self.fp, 'wb+')
+            self.f.write(self.audio.raw_data)
+            self.f.flush()
         self.chunk = self.audio.frame_width  # frame
+        self.size = self.eof = len(self.audio.raw_data)  # eof will be used in the blocker; see bottom of file
         self.f.seek(0)
         self.cache: {(int, int): bytes} = dict()  # (start, end): data
 
         #self.frame_rate = self.audio.frame_rate
 
+        #print(sys.getrefcount(self.audio._data))
         del self.audio._data
+
 
     def chunk_number(self, ms):
         return int(ms * self.audio.frame_rate / 1000.0)
@@ -120,22 +126,22 @@ class AudioStream(BinaryStream):
         return self.load(int(start_byte), int(end_byte))
 
     def read_as_audio(self, ms):
-        return self.audio._spawn(self.read(ms))
+        return self.audio._spawn(self.read(self.chunk_number(ms)))
 
     def seek_chunk(self, n):
-        print(n, self.chunk, n*self.chunk)
         self.f.seek(n*self.chunk, SEEK_SET)
 
-    def set_eof_at_byte(self, n=None):
+    def set_eof_at_chunk(self, n=None):
         if n is None or n < 0:
-            self.eof = self.size
+            self.eof = self.size / self.chunk
         else:
             self.eof = n
 
 
-def audio_stream_blocker(audio_stream: AudioStream, ms_per_block):
-    for block in range(ceil(audio_stream.eof / audio_stream.chunk / ms_per_block)):
-        yield audio_stream.read_as_audio(ms_per_block)
+def audio_stream_blocker(audio_stream: AudioStream, ms_per_block):  # this is the only function that uses eof to stop serving audio at a certain point
+    # print('$$', audio_stream.eof , audio_stream.chunk , ms_per_block, audio_stream.eof / ms_per_block)
+    for block in range(ceil(audio_stream.eof / ms_per_block)):
+        yield audio_stream.read(audio_stream.chunk_number(ms_per_block))
 
 
 

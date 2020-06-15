@@ -210,7 +210,7 @@ class Manager:
                     self.app.root.update()
 
                     # Generate track and queue it
-                    self.track_dict[name] = t = audio.Track(**track)  # track_dict used for autofollow
+                    self.track_dict[name] = t = audio.Track(**track, chunk_override=audio.Track.CHUNK)  # track_dict used for autofollow
                     track_list.append(t)
 
                     # yt_cache is EVANESCENT

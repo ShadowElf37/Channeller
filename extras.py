@@ -4,6 +4,17 @@ from multiprocessing.managers import BaseManager
 from multiprocessing import Lock
 
 
+
+from operator import itemgetter
+
+from pympler import tracker
+
+def testmem():
+    mem = tracker.SummaryTracker()
+    print(sorted(mem.create_summary(), reverse=True, key=itemgetter(2))[:10])
+
+
+
 IO_LOCK = Lock()
 def safe_print(*args):
     global IO_LOCK
