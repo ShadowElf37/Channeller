@@ -104,14 +104,14 @@ class AudioStream(BinaryStream):
         self.f.seek(0)
         self.cache: {(int, int): bytes} = dict()  # (start, end): data
 
-        #self.frame_rate = self.audio.frame_rate
+        self.frame_rate = self.audio.frame_rate
 
         #print(sys.getrefcount(self.audio._data))
         del self.audio._data
 
 
     def chunk_number(self, ms):
-        return int(ms * self.audio.frame_rate / 1000.0)
+        return int(ms * self.frame_rate / 1000.0)
 
     def read_bytes(self, n):
         return super().read_bytes(n)

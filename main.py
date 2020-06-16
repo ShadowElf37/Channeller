@@ -24,7 +24,6 @@ from threading import Thread
 from extras import Path, ProxyManager, safe_print as print
 import multiprocessing as mp
 import graphics, audio, views, cues, manager, osc
-from streaming import AudioStream
 import builtins
 
 

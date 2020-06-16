@@ -157,7 +157,7 @@ class Channel:
         track.procinit()
         self.update()
         freed = sizemb(track.track._data)
-        del track.track  # The only place this is used should be in subprocesses, which have already copied the data over... therefore this is wasted RAM, and it is LARGE
+        del track.track  # The only other place this is used should be in subprocesses, which have already copied the data over... therefore this is wasted RAM, and it is LARGE
         print('Freed %.2f MB of copied RAM.' % freed)
 
     def goto(self, i, offset=False):
@@ -299,6 +299,7 @@ class Track:
 
         self.initially_mono = False if self.track.channels > 1 else True
         self.length = self.track.duration_seconds
+        self.sample_width = self.track.sample_width
         self.CHUNK = chunk_override
 
         self.proc = mp.Process(target=self.procloop, args=(self.EXECUTOR_QUEUE, self.STDOUT), daemon=True)
@@ -326,7 +327,7 @@ class Track:
     def procloop(self, exec_queue, stdout):
         sys.stdout = sys.stderr = stdout
         print('Subprocess for %s started.' % self)
-        stream = PA.open(format=PA.get_format_from_width(self.track.sample_width),
+        stream = PA.open(format=PA.get_format_from_width(self.sample_width),
                          channels=self.track.channels,
                          rate=self.track.frame_rate,
                          output=True,  # Audio out
@@ -334,9 +335,10 @@ class Track:
 
         data_stream = None
         if self.streaming:
-            print('Freed another %.2f MB by streaming.' % (sys.getsizeof(self.track.raw_data) / 1000000))
+            print('Freed another %.2f MB by streaming.' % (sizemb(self.track.raw_data)))
             data_stream = streaming.AudioStream(self.track, self.name)
             print('STREAMING', self.name)
+            del self.track
             #print(sys.getsizeof(data_stream.__dict__), sys.getsizeof(data_stream.audio.__dict__), data_stream.audio.__dict__)
             data_stream.load_ms(0, 2000)
 
@@ -396,7 +398,7 @@ class Track:
 
             try:
                 if data_stream is not None:
-                    data = audioop.mul(chunk, self.track.sample_width, 10 ** (float(self.channel.gain + self.gain) / 10))
+                    data = audioop.mul(chunk, self.sample_width, 10 ** (float(self.channel.gain + self.gain) / 10))
                 else:
                     data = (chunk + self.channel.gain + self.gain)._data  # Live gain editing is possible because it's applied to each chunk in real time
                 #print('new segment created')
