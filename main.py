@@ -221,6 +221,8 @@ if __name__ == "__main__":
             }
             import channeller
             channeller._import(cm.locals)
+            print('Loading userfunctions...')
+            loading_text.set('Loading external functions...')
             import userfunctions
             print('Interfaced with userfunctions.py!')
 
