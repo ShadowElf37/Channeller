@@ -71,6 +71,19 @@ class EOSIonXe(OSCDevice):
         self._send('/eos/ping')
         print(f'{self.name}: ping')
 
+
+import pipe
+class ProsceniumClient:
+    def __init__(self, ip='localhost', port=38051):
+        self.pipe = pipe.Pipe(ip=ip, at=port)
+        self.pipe.open(blocking=False)
+
+    def put(self, msg):
+        self.pipe.write(msg)
+    def get(self):
+        return self.pipe.read()
+
+
 if __name__ == "__main__":
     import osc
     server = osc.Server()
