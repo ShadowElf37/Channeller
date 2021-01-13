@@ -4,16 +4,18 @@ import ntpath
 from threading import Thread
 from time import sleep
 from pydub import AudioSegment
+import audioop
 from pydub.utils import make_chunks
 from pydub.effects import compress_dynamic_range
 import multiprocessing as mp
 from math import ceil
 from extras import sizemb, safe_print as print
+import extras
 import shared
 import sys
 from queue import Queue
+import streaming
 
-CHUNK = 50  # 50ms chunks for processing – if it's too low then the overhead gets larger than the chunks are!
 DIR = os.getcwd()
 
 PA = pyaudio.PyAudio()
@@ -155,7 +157,7 @@ class Channel:
         track.procinit()
         self.update()
         freed = sizemb(track.track._data)
-        del track.track  # The only place this is used should be in subprocesses, which have already copied the data over... therefore this is wasted RAM, and it is LARGE
+        del track.track  # The only other place this is used should be in subprocesses, which have already copied the data over... therefore this is wasted RAM, and it is LARGE
         print('Freed %.2f MB of copied RAM.' % freed)
 
     def goto(self, i, offset=False):
@@ -218,6 +220,9 @@ class Track:
     CACHE_CONVERTED = True
     CACHE_DOWNLOADED = True
 
+    CHUNK = 50  # 50ms chunks for processing – if it's too low then the overhead gets larger than the chunks are!
+    # CHUNK overridden in config
+
     def __getstate__(self):
         d = self.__dict__.copy()
         del d['proc']
@@ -226,7 +231,7 @@ class Track:
     def __init__(self, file, name='',
                  start_sec=0.0, end_sec=None, fade_in=0.0, fade_out=0.0, delay_in=0.0, delay_out=0.0, gain=0.0, repeat=0,
                  repeat_transition_duration=0.1, repeat_transition_is_xf=False, cut_leading_silence=False,
-                 autofollow=(), timed_commands=()):
+                 autofollow=(), timed_commands=(), chunk_override=CHUNK):
         # If repeat_transition_xf is False then a delay will be used with repeat_transition_duration; if True, it will crossfade
         # Setting fade_in and fade_out to 0.0 will crash
         self.f = file
@@ -287,11 +292,15 @@ class Track:
                     self.track = self.track.append(self.track, crossfade=repeat_transition_duration)
             # delay out
             self.track += AudioSegment.silent(self.delay[1])
+
+            del loaded
         else: # An empty track is desired for whatever reason; use delay in and delay out
             self.track = AudioSegment.silent(self.delay[0]) + AudioSegment.silent(self.delay[1])
 
         self.initially_mono = False if self.track.channels > 1 else True
         self.length = self.track.duration_seconds
+        self.sample_width = self.track.sample_width
+        self.CHUNK = chunk_override
 
         self.proc = mp.Process(target=self.procloop, args=(self.EXECUTOR_QUEUE, self.STDOUT), daemon=True)
         self.restart_lock = mp.Lock()
@@ -307,6 +316,8 @@ class Track:
         self.queue_index = shared.Int()
         self.old = shared.Bool()  # False until played; False when renewed, to make sure you don't renew it multiple times
 
+        self.streaming = shared.Bool(True)
+
     def __repr__(self):
         return f'<Track "{self.name}">'
 
@@ -316,11 +327,20 @@ class Track:
     def procloop(self, exec_queue, stdout):
         sys.stdout = sys.stderr = stdout
         print('Subprocess for %s started.' % self)
-        stream = PA.open(format=PA.get_format_from_width(self.track.sample_width),
+        stream = PA.open(format=PA.get_format_from_width(self.sample_width),
                          channels=self.track.channels,
                          rate=self.track.frame_rate,
                          output=True,  # Audio out
                          output_device_index=self.channel.device)
+
+        data_stream = None
+        if self.streaming:
+            print('Freed another %.2f MB by streaming.' % (sizemb(self.track.raw_data)))
+            data_stream = streaming.AudioStream(self.track, self.name)
+            print('STREAMING', self.name)
+            del self.track
+            #print(sys.getsizeof(data_stream.__dict__), sys.getsizeof(data_stream.audio.__dict__), data_stream.audio.__dict__)
+            data_stream.load_ms(0, 2000)
 
         stream_queue = Queue(1)
         self.player_thread = Thread(target=self._write_to_stream, args=(stream, stream_queue), daemon=True)
@@ -328,14 +348,16 @@ class Track:
         try:
             print('%s on standby' % self)
             self._ready_barrier.wait()  # main should be the last to the barrier, unless we don't care about waiting for proc to be ready
+            extras.testmem()
             while True:
                 self.restart_lock.acquire(True)
-                self._play(stream, stream_queue, exec_queue)
+                self._play(stream, stream_queue, exec_queue, data_stream)
                 self._renew()
                 print('%s on standby' % self)
         finally:
             stream_queue.put(None)
             stream.close()
+            #os.remove(data_stream.fp)
 
     def _write_to_stream(self, stream: pyaudio.Stream, stream_queue: Queue):
         while True:
@@ -345,11 +367,20 @@ class Track:
             stream.write(data)
             stream_queue.task_done()
 
-    def _play(self, stream: pyaudio.Stream, stream_queue: Queue, exec_queue: mp.Queue):
+    def _play(self, stream: pyaudio.Stream, stream_queue: Queue, exec_queue: mp.Queue, data_stream: streaming.AudioStream=None):
         self.playing.set(True)
         self.old.set(True)
         print('playing %s' % self)
-        for chunk in make_chunks(self.track[self.temp_start:self.temp_end], CHUNK):
+
+        if data_stream is not None:
+            data_stream.seek_chunk(data_stream.chunk_number(self.temp_start))
+            data_stream.set_eof_at_chunk(data_stream.chunk_number(self.temp_end))
+            chunks = streaming.audio_stream_blocker(data_stream, self.CHUNK)
+            print(chunks)
+        else:
+            chunks = make_chunks(self.track[self.temp_start:self.temp_end], self.CHUNK)
+
+        for chunk in chunks:
             #print('chunked')
             if self.paused:
                 print('pause_lock acquired')
@@ -366,7 +397,10 @@ class Track:
             #print('stop checked')
 
             try:
-                data = (chunk + self.channel.gain + self.gain)._data  # Live gain editing is possible because it's applied to each 50 ms chunk in real time
+                if data_stream is not None:
+                    data = audioop.mul(chunk, self.sample_width, 10 ** (float(self.channel.gain + self.gain) / 10))
+                else:
+                    data = (chunk + self.channel.gain + self.gain)._data  # Live gain editing is possible because it's applied to each chunk in real time
                 #print('new segment created')
                 stream_queue.join() # this should block until _write_to_stream() is done processing
                 stream_queue.put(data)  # this will also block if there's more than 1 item in the queue, but that's impossible?
@@ -376,8 +410,8 @@ class Track:
                 raise DeviceDisconnected
 
             #print('wrote!')
-            self.play_time += CHUNK
-            if self.queue_index != len(self.at_time_queue) and abs(self.at_time_queue[self.queue_index.get()][0] - self.play_time) < CHUNK:
+            self.play_time += self.CHUNK
+            if self.queue_index != len(self.at_time_queue) and abs(self.at_time_queue[self.queue_index.get()][0] - self.play_time) < self.CHUNK:
                 # If within a CHUNK of the execution time
                 for s in self.at_time_queue[self.queue_index.get()][1]:
                     exec_queue.put(s)

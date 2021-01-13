@@ -239,7 +239,7 @@ class ProgressBar(Element):
 
 
 class App:
-    def __init__(self, width, height, bg='black', **kwargs):
+    def __init__(self, width, height, bg='black', fps=60, **kwargs):
         self.DIR = os.getcwd()
         self.FONT = 'Lucida Console'
         self.FONTSCALE = 9
@@ -248,7 +248,7 @@ class App:
         self.IMG = Path(self.DIR, 'images')
         self.W = self.w = self.ow = width  # w and h are current width and height; W and H are original
         self.H = self.h = self.oh = height
-        self.framerate = 60
+        self.framerate = fps
 
         self.fullscreen = False
         self.alt_tabbed = False

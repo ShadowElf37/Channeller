@@ -139,7 +139,7 @@ if __name__ == "__main__":
 
             audio.Track.EXECUTOR_QUEUE = EXECUTOR_QUEUE
 
-            app = graphics.App(700, 300, bg='#080808')
+            app = graphics.App(700, 300, bg='#080808', fps=30)
             app.resize(275, 60)
 
             app.bind('F5', app.toggle_fullscreen)
@@ -197,7 +197,7 @@ if __name__ == "__main__":
             audio.Track.CACHE_DOWNLOADED = settings['cache_downloaded_tracks']
             audio.Track.CACHE_CONVERTED = settings['cache_converted_tracks']
 
-            audio.CHUNK = settings['chunk_size']
+            audio.Track.CHUNK = settings['chunk_size']
 
             # OSC
             osc_server = osc.Server(host=settings['osc_host_ip'], port=settings['osc_host_port'])
@@ -221,6 +221,8 @@ if __name__ == "__main__":
             }
             import channeller
             channeller._import(cm.locals)
+            print('Loading userfunctions...')
+            loading_text.set('Loading external functions...')
             import userfunctions
             print('Interfaced with userfunctions.py!')
 

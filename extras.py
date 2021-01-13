@@ -4,6 +4,17 @@ from multiprocessing.managers import BaseManager
 from multiprocessing import Lock
 
 
+
+from operator import itemgetter
+
+from pympler import tracker
+
+def testmem():
+    mem = tracker.SummaryTracker()
+    print(sorted(mem.create_summary(), reverse=True, key=itemgetter(2))[:10])
+
+
+
 IO_LOCK = Lock()
 def safe_print(*args):
     global IO_LOCK
@@ -52,6 +63,7 @@ def get_lines_of_code(start_path='.', exts=('js', 'py', 'html', 'css')):
                 with open(fp, 'rb') as f:
                     total_lines += sum([1 for l in f.readlines() if l.strip()])
     return total_lines
+
 
 if __name__ == "__main__":
     print('Counted %s lines of code.' % get_lines_of_code(exts=['py']))
