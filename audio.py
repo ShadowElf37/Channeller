@@ -234,7 +234,7 @@ class Track:
                  autofollow=(), timed_commands=(), chunk_override=CHUNK):
         # If repeat_transition_xf is False then a delay will be used with repeat_transition_duration; if True, it will crossfade
         # Setting fade_in and fade_out to 0.0 will crash
-        self.f = file
+        self.f = file if (file is None or os.path.exists(file)) else os.path.join(ntpath.dirname(file), 'tracks', ntpath.basename(file))
         self.name = name or file
         self.start = int(start_sec * 1000)
         self.end = int(end_sec * 1000) if end_sec else None
@@ -254,7 +254,7 @@ class Track:
         self.at_time_mods = timed_commands
 
         if not self.empty:  # File is passed
-            fname, ext = os.path.splitext(ntpath.basename(file))  # ntpath.basename splits off the file name from a path
+            fname, ext = os.path.splitext(ntpath.basename(self.f))  # ntpath.basename splits off the file name from a path
             loaded = None
             wc = os.path.join(DIR, 'wave_cache')
 
@@ -268,14 +268,14 @@ class Track:
                         break
                 if loaded is None:
                     # We didn't find a cached wav so we need to load it; cache a wav copy
-                    loaded = AudioSegment.from_file(file)
+                    loaded = AudioSegment.from_file(self.f)
                     print('GENERATING WAV:', os.path.join(wc, fname+'.wav'))
-                    if self.CACHE_CONVERTED and 'yt_cache' not in file or self.CACHE_DOWNLOADED and 'yt_cache' in file:
+                    if self.CACHE_CONVERTED and 'yt_cache' not in self.f or self.CACHE_DOWNLOADED and 'yt_cache' in file:
                         loaded.export(os.path.join(wc, fname+'.wav'), format='wav')
             else:
                 # They gave us a wav thank God
-                print('WAV RECEIVED:', file)
-                loaded = AudioSegment.from_file(file)
+                print('WAV RECEIVED:', self.f)
+                loaded = AudioSegment.from_file(self.f)
 
             # delay in, start time, end of leading silence, end time, fade in, fade out
             self.track = AudioSegment.silent(self.delay[0]) +\

@@ -8,17 +8,9 @@
         "device_index": null
     },
     {
-        "name": "SFX 2",
-        "color": "#f00",
-        "gain": 0.0,
-        "mono": false,
-        "slot": 1,
-        "device_index": null
-    },
-    {
         "name": "Soundtrack",
-        "color": "#f60",
-        "gain": -5.0,
+        "color": "#0f0",
+        "gain": 1.0,
         "mono": false,
         "slot": 3,
         "device_index": null

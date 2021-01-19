@@ -4,16 +4,36 @@
     ],
     "Soundtrack": [
         {
-            "url": "RKwZdlIYPMc",
-            "name": "Chrysopoeia"
-        },
-
-        {
-            "file": "From Peak to Peak.wav",
-            "name": "From Peak to Peak"
+            "file": "1 - Sovylin Deep.mp3",
+            "name": "Sovylin Deep"
         },
         {
-            "url": "HIqQ0PfuPo8"
+            "file": "2 - Transition 1 - Honor.mp3",
+            "name": "Transition 1 (Honor)"
+        },
+        {
+            "file": "3 - Transition 2 - Traveler.mp3",
+            "name": "Transition 2 (Traveler)"
+        },
+        {
+            "file": "4 - Worthy Opponent.mp3",
+            "name": "Worthy Opponent"
+        },
+        {
+            "file": "5 - Nighttime.mp3",
+            "name": "Nighttime"
+        },
+        {
+            "file": "6 - Transition 3 - Malice.mp3",
+            "name": "Transition 3 (Malice)"
+        },
+        {
+            "file": "7 - Standoff.mp3",
+            "name": "Standoff"
+        },
+        {
+            "file": "8 - Sovylin Deep Reprise.mp3",
+            "name": "Sovylin Deep Reprise"
         }
     ]
 }
