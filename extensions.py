@@ -72,11 +72,19 @@ class EOSIonXe(OSCDevice):
         print(f'{self.name}: ping')
 
 
+from threading import Thread
 import pipe
 class ProsceniumClient:
     def __init__(self, ip='localhost', port=38051):
         self.pipe = pipe.Pipe(ip=ip, at=port)
         self.pipe.open(blocking=False)
+
+        #self._manual_input_thread = Thread(target=self._manual_input_loop, daemon=True)
+        #self._manual_input_thread.start()
+
+    def _manual_input_loop(self):
+        while self.pipe.is_open:
+            self.pipe.write(input('>> '))
 
     def put(self, msg):
         self.pipe.write(msg)
