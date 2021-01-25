@@ -121,7 +121,7 @@ class Channel:
             # interval is in ms
             duration *= 1000
             delta = (to - self.gain) * (interval / duration)
-            for _ in range(duration//interval):
+            for _ in range(int(duration/interval)):
                 self.gain += delta
                 sleep(interval/1000)
         self.gain.set(float(to))
