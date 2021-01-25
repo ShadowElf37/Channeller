@@ -83,7 +83,6 @@ class ProsceniumClient:
     def get(self):
         return self.pipe.read()
 
-
 if __name__ == "__main__":
     import osc
     server = osc.Server()

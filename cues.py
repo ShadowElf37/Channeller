@@ -24,7 +24,8 @@ class CueManager:
             if len(s) == 1:
                 c = d = s[0]
             else:
-                c, d = s
+                c, *d = s
+                d = '#'.join(d)
             self.cue(c.strip(), (d or c).strip())
 
     def check_i(self, i):
